@@ -18,6 +18,13 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Main.c" />
+    <ClCompile Include="Util.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Util.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{8BE6DAED-7FC8-4234-8F0F-B3C1A13FEC03}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
@@ -190,9 +197,6 @@
       <FixedBaseAddress>false</FixedBaseAddress>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="Main.c" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
