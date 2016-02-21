@@ -254,3 +254,62 @@ lblCleanup:
 
 	return hrResult;
 }
+
+HRESULT
+UTIL_DuplicateStringAnsiToUnicode(
+	_In_		PCSTR	pszSource,
+	_Outptr_	PWSTR *	ppwszDestination
+)
+{
+	HRESULT	hrResult		= E_FAIL;
+	INT		cchDestination	= 0;
+	PWSTR	pwszDestination	= NULL;
+
+	if ((NULL == pszSource) ||
+		(NULL == ppwszDestination))
+	{
+		hrResult = E_INVALIDARG;
+		goto lblCleanup;
+	}
+
+	cchDestination = MultiByteToWideChar(CP_ACP,
+										 MB_ERR_INVALID_CHARS,
+										 pszSource,
+										 -1,
+										 NULL,
+										 0);
+	if (0 == cchDestination)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	pwszDestination = HEAPALLOC(cchDestination * sizeof(*pwszDestination));
+	if (NULL == pwszDestination)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	if (cchDestination != MultiByteToWideChar(CP_ACP,
+											  MB_ERR_INVALID_CHARS,
+											  pszSource,
+											  -1,
+											  pwszDestination,
+											  cchDestination))
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	// Transfer ownership:
+	*ppwszDestination = pwszDestination;
+	pwszDestination = NULL;
+
+	hrResult = S_OK;
+
+lblCleanup:
+	HEAPFREE(pwszDestination);
+
+	return hrResult;
+}

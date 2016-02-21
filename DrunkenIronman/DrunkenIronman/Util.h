@@ -48,3 +48,9 @@ UTIL_QuerySystemInformation(
 	_Outptr_result_bytebuffer_(*pcbSystemInformation)	PVOID *						ppvSystemInformation,
 	_Out_												PDWORD						pcbSystemInformation
 );
+
+HRESULT
+UTIL_DuplicateStringAnsiToUnicode(
+	_In_		PCSTR	pszSource,
+	_Outptr_	PWSTR *	ppwszDestination
+);
