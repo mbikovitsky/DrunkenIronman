@@ -15,5 +15,6 @@
     <ClInclude Include="Util.h">
       <Filter>Util</Filter>
     </ClInclude>
+    <ClInclude Include="Precomp.h" />
   </ItemGroup>
 </Project>

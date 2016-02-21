@@ -1,6 +1,4 @@
-#include <windows.h>
-#include <tchar.h>
-
+#include "Precomp.h"
 #include "Util.h"
 
 

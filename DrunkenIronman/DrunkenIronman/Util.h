@@ -1,7 +1,6 @@
 #pragma once
 
-#include <windows.h>
-#include <tchar.h>
+#include "Precomp.h"
 
 
 #define HEAPALLOC(cbSize) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (cbSize))
@@ -41,4 +40,11 @@ UTIL_ReadResourceFromFile(
 	_In_										WORD	eLanguage,
 	_Outptr_result_bytebuffer_(*pcbResource)	PVOID *	ppvResource,
 	_Out_										PDWORD	pcbResource
+);
+
+HRESULT
+UTIL_QuerySystemInformation(
+	_In_												SYSTEM_INFORMATION_CLASS	eSystemInformationClass,
+	_Outptr_result_bytebuffer_(*pcbSystemInformation)	PVOID *						ppvSystemInformation,
+	_Out_												PDWORD						pcbSystemInformation
 );
