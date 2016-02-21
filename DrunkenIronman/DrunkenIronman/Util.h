@@ -14,7 +14,7 @@
 	}
 #define CLOSE(object, pfnDestructor) CLOSE_TO_VALUE((object), (pfnDestructor), NULL)
 #define CLOSE_HANDLE(hObject) CLOSE((hObject), CloseHandle)
-#define CLOSE_FILE_HANDLE(hFile) CLOSE_TO_VALUE((hObject), CloseHandle, INVALID_HANDLE_VALUE)
+#define CLOSE_FILE_HANDLE(hFile) CLOSE_TO_VALUE((hFile), CloseHandle, INVALID_HANDLE_VALUE)
 
 
 HRESULT
