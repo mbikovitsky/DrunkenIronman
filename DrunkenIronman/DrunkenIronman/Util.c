@@ -13,7 +13,7 @@ typedef FN_ISWOW64PROCESS *PFN_ISWOW64PROCESS;
 
 typedef
 NTSTATUS
-WINAPI
+NTAPI
 FN_NTQUERYSYSTEMINFORMATION(
 	_In_		SYSTEM_INFORMATION_CLASS	eSystemInformationClass,
 	_Inout_		PVOID						pvSystemInformation,
@@ -21,6 +21,33 @@ FN_NTQUERYSYSTEMINFORMATION(
 	_Out_opt_	PULONG						pcbReturned
 );
 typedef FN_NTQUERYSYSTEMINFORMATION *PFN_NTQUERYSYSTEMINFORMATION;
+
+typedef
+VOID
+NTAPI
+FN_RTLINITUNICODESTRING(
+	_Out_		PUNICODE_STRING	pusDestinationString,
+	_In_opt_	PCWSTR			pwszSourceString
+);
+typedef FN_RTLINITUNICODESTRING *PFN_RTLINITUNICODESTRING;
+
+typedef
+NTSTATUS
+NTAPI
+FN_NTCREATEFILE(
+	_Out_		PHANDLE				phFile,
+	_In_		ACCESS_MASK			fDesiredAccess,
+	_In_		POBJECT_ATTRIBUTES	ptObjectAttributes,
+	_Out_		PIO_STATUS_BLOCK	ptIoStatusBlock,
+	_In_opt_	PLARGE_INTEGER		pcbAllocationSize,
+	_In_		ULONG				fFileAttributes,
+	_In_		ULONG				fShareAccess,
+	_In_		ULONG				eCreateDisposition,
+	_In_		ULONG				fCreateOptions,
+	_In_		PVOID				pvEaBuffer,
+	_In_		ULONG				cbEaBuffer
+);
+typedef FN_NTCREATEFILE *PFN_NTCREATEFILE;
 
 
 HRESULT
@@ -310,6 +337,87 @@ UTIL_DuplicateStringAnsiToUnicode(
 
 lblCleanup:
 	HEAPFREE(pwszDestination);
+
+	return hrResult;
+}
+
+HRESULT
+UTIL_NtCreateFile(
+	_In_		PCWSTR		pwszPath,
+	_In_		ACCESS_MASK	eDesiredAccess,
+	_In_		DWORD		fFileAttributes,
+	_In_		DWORD		fShareAccess,
+	_In_		DWORD		eCreateDisposition,
+	_In_		DWORD		fCreateOptions,
+	_Out_		PHANDLE		phFile
+)
+{
+	HRESULT						hrResult				= E_FAIL;
+	NTSTATUS					eStatus					= STATUS_UNSUCCESSFUL;
+	HMODULE						hNtdll					= NULL;
+	PFN_RTLINITUNICODESTRING	pfnRtlInitUnicodeString	= NULL;
+	PFN_NTCREATEFILE			pfnNtCreateFile			= NULL;
+	UNICODE_STRING				usPath					= { 0 };
+	OBJECT_ATTRIBUTES			tAttributes				= { 0 };
+	IO_STATUS_BLOCK				tStatusBlock			= { 0 };
+	HANDLE						hFile					= INVALID_HANDLE_VALUE;
+
+	if ((NULL == pwszPath) ||
+		(NULL == phFile))
+	{
+		hrResult = E_INVALIDARG;
+		goto lblCleanup;
+	}
+
+	hNtdll = LoadLibrary(_T("ntdll.dll"));
+	if (NULL == hNtdll)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	pfnRtlInitUnicodeString = (PFN_RTLINITUNICODESTRING)GetProcAddress(hNtdll, "RtlInitUnicodeString");
+	if (NULL == pfnRtlInitUnicodeString)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	pfnNtCreateFile = (PFN_NTCREATEFILE)GetProcAddress(hNtdll, "NtCreateFile");
+	if (NULL == pfnNtCreateFile)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	pfnRtlInitUnicodeString(&usPath, pwszPath);
+	InitializeObjectAttributes(&tAttributes, &usPath, 0, NULL, NULL);
+	eStatus = pfnNtCreateFile(&hFile,
+							  eDesiredAccess,
+							  &tAttributes,
+							  &tStatusBlock,
+							  NULL,
+							  fFileAttributes,
+							  fShareAccess,
+							  eCreateDisposition,
+							  fCreateOptions,
+							  NULL,
+							  0);
+	if (!NT_SUCCESS(eStatus))
+	{
+		hrResult = HRESULT_FROM_NT(eStatus);
+		goto lblCleanup;
+	}
+
+	// Transfer ownership:
+	*phFile = hFile;
+	hFile = INVALID_HANDLE_VALUE;
+
+	hrResult = S_OK;
+
+lblCleanup:
+	CLOSE_FILE_HANDLE(hFile);
+	CLOSE(hNtdll, FreeLibrary);
 
 	return hrResult;
 }

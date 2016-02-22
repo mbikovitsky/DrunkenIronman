@@ -54,3 +54,14 @@ UTIL_DuplicateStringAnsiToUnicode(
 	_In_		PCSTR	pszSource,
 	_Outptr_	PWSTR *	ppwszDestination
 );
+
+HRESULT
+UTIL_NtCreateFile(
+	_In_		PCWSTR		pwszPath,
+	_In_		ACCESS_MASK	eDesiredAccess,
+	_In_		DWORD		fFileAttributes,
+	_In_		DWORD		fShareAccess,
+	_In_		DWORD		eCreateDisposition,
+	_In_		DWORD		fCreateOptions,
+	_Out_		PHANDLE		phFile
+);
