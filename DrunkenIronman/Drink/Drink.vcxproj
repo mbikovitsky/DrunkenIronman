@@ -110,7 +110,8 @@
       <OmitFramePointers>true</OmitFramePointers>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <CreateHotpatchableImage>false</CreateHotpatchableImage>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);_WIN32_WINNT=0x0502;WINVER=0x0502;NTDDI_VERSION=0x05020000</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);_WIN32_WINNT=0x0502;WINVER=0x0502;NTDDI_VERSION=0x05020000;STATIC=static</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>false</GenerateDebugInformation>
@@ -132,7 +133,8 @@
       <OmitFramePointers>true</OmitFramePointers>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <CreateHotpatchableImage>false</CreateHotpatchableImage>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);_WIN32_WINNT=0x0502;WINVER=0x0502;NTDDI_VERSION=0x05020000</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);_WIN32_WINNT=0x0502;WINVER=0x0502;NTDDI_VERSION=0x05020000;STATIC=static</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>false</GenerateDebugInformation>
@@ -149,7 +151,8 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <CreateHotpatchableImage>false</CreateHotpatchableImage>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);_WIN32_WINNT=0x0502;WINVER=0x0502;NTDDI_VERSION=0x05020000</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);_WIN32_WINNT=0x0502;WINVER=0x0502;NTDDI_VERSION=0x05020000;STATIC=static</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
@@ -165,7 +168,8 @@
       <TreatWarningAsError>false</TreatWarningAsError>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <CreateHotpatchableImage>false</CreateHotpatchableImage>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);_WIN32_WINNT=0x0502;WINVER=0x0502;NTDDI_VERSION=0x05020000</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);_WIN32_WINNT=0x0502;WINVER=0x0502;NTDDI_VERSION=0x05020000;STATIC=static</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
@@ -176,6 +180,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Driver.c" />
+    <ClCompile Include="VgaDump.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="VgaDump.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
