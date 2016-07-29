@@ -88,13 +88,86 @@ vgadump_EnableInterrupts(VOID)
 }
 
 /**
+ * Reads a byte from a VGA register.
+ *
+ * @param[in]	nIndexRegister	VGA index register.
+ * @param[in]	nDataRegister	VGA data register.
+ * @param[in]	nIndex			Index of the register to read.
+ *
+ * @returns The byte read.
+ */
+STATIC
+UCHAR
+vgadump_ReadRegisterByte(
+	_In_	USHORT	nIndexRegister,
+	_In_	USHORT	nDataRegister,
+	_In_	UCHAR	nIndex
+)
+{
+	UCHAR	nOldIndex	= 0;
+	UCHAR	fValue		= 0;
+
+	vgadump_DisableInterrupts();
+	{
+		// Save the previous value in the index register
+		nOldIndex = __inbyte(nIndexRegister);
+
+		// Set the new index
+		__outbyte(nIndexRegister, nIndex);
+
+		// Read byte from the data register
+		fValue = __inbyte(nDataRegister);
+
+		// Restore the index register
+		__outbyte(nIndexRegister, nOldIndex);
+	}
+	vgadump_EnableInterrupts();
+
+	return fValue;
+}
+
+/**
+ * Writes a byte to a VGA register.
+ *
+ * @param[in]	nIndexRegister	VGA index register.
+ * @param[in]	nDataRegister	VGA data register.
+ * @param[in]	nIndex			Index of the register to read.
+ * @param[in]	fValue			The value to write.
+ */
+STATIC
+VOID
+vgadump_WriteRegisterByte(
+	_In_	USHORT	nIndexRegister,
+	_In_	USHORT	nDataRegister,
+	_In_	UCHAR	nIndex,
+	_In_	UCHAR	fValue
+)
+{
+	UCHAR	nOldIndex	= 0;
+
+	vgadump_DisableInterrupts();
+	{
+		// Save the previous value in the index register
+		nOldIndex = __inbyte(nIndexRegister);
+
+		// Set the new index
+		__outbyte(nIndexRegister, nIndex);
+
+		// Write the supplied value
+		__outbyte(nDataRegister, fValue);
+
+		// Restore the index register
+		__outbyte(nIndexRegister, nOldIndex);
+	}
+	vgadump_EnableInterrupts();
+}
+
+/**
  * Dumps the VGA's DAC palette to the given buffer.
  *
  * @param[out]	pnPalette	Will receive the palette's contents.
  *							This buffer must be large enough to contain
  *							the whole palette.
- *
- * @returns description
  */
 STATIC
 VOID
