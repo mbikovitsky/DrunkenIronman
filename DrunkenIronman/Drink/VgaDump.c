@@ -165,28 +165,34 @@ vgadump_WriteRegisterByte(
 /**
  * Dumps the VGA's DAC palette to the given buffer.
  *
- * @param[out]	pnPalette	Will receive the palette's contents.
- *							This buffer must be large enough to contain
- *							the whole palette.
+ * @param[out]	ptPaletteEntries	Will receive the palette's contents.
+ *									This buffer must be large enough to contain
+ *									the whole palette.
  */
 STATIC
 VOID
 vgadump_DumpPalette(
-	_Out_	PULONG	pnPalette
+	_Out_writes_all_(VGA_DAC_PALETTE_ENTRIES)	PPALETTE_ENTRY	ptPaletteEntries
 )
 {
 	ULONG	nEntry	= 0;
 
-	ASSERT(NULL != pnPalette);
+	ASSERT(NULL != ptPaletteEntries);
+
+	//
+	// NOTE: We don't use the safe register functions
+	//       here because these registers are not addressed
+	//       using an index/data pair.
+	//
 
 	// DAC Address Read Mode Register
 	__outbyte(0x3C7, 0);
 
 	for (nEntry = 0; nEntry < VGA_DAC_PALETTE_ENTRIES; ++nEntry)
 	{
-		pnPalette[nEntry] = __inbyte(0x3C9);		// Red
-		pnPalette[nEntry] |= __inbyte(0x3C9) << 8;	// Green
-		pnPalette[nEntry] |= __inbyte(0x3C9) << 16;	// Blue
+		ptPaletteEntries[nEntry].nRed =  __inbyte(0x3C9);
+		ptPaletteEntries[nEntry].nGreen = __inbyte(0x3C9);
+		ptPaletteEntries[nEntry].nBlue = __inbyte(0x3C9);
 	}
 }
 
@@ -274,7 +280,7 @@ vgadump_BugCheckSecondaryDumpDataCallback(
 	// First time around, fill the dump data.
 	if (NULL == ptSecondaryDumpData->OutBuffer)
 	{
-		vgadump_DumpPalette(g_tDump.anPalette);
+		vgadump_DumpPalette(g_tDump.atPaletteEntries);
 
 		for (nPlane = 0; nPlane < VGA_PLANES; ++nPlane)
 		{

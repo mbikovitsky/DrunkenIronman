@@ -40,6 +40,17 @@ C_ASSERT(PIXELS_IN_BYTE == 8);
 /** Typedefs ************************************************************/
 
 /**
+ * Contains information about a single DAC palette entry.
+ */
+typedef struct _PALETTE_ENTRY
+{
+	UCHAR	nRed;
+	UCHAR	nGreen;
+	UCHAR	nBlue;
+} PALETTE_ENTRY, *PPALETTE_ENTRY;
+typedef CONST PALETTE_ENTRY *PCPALETTE_ENTRY;
+
+/**
  * Structure of a single plane of VGA video memory.
  */
 typedef UCHAR VGA_PLANE_DUMP[(SCREEN_WIDTH_PIXELS * SCREEN_HEIGHT_PIXELS) / PIXELS_IN_BYTE];
@@ -50,7 +61,7 @@ typedef UCHAR VGA_PLANE_DUMP[(SCREEN_WIDTH_PIXELS * SCREEN_HEIGHT_PIXELS) / PIXE
 typedef struct _VGA_DUMP
 {
 	// The VGA's DAC palette entries.
-	ULONG			anPalette[VGA_DAC_PALETTE_ENTRIES];
+	PALETTE_ENTRY	atPaletteEntries[VGA_DAC_PALETTE_ENTRIES];
 
 	// Contents of all the VGA's planes, sequentially.
 	VGA_PLANE_DUMP	atPlanes[VGA_PLANES];
