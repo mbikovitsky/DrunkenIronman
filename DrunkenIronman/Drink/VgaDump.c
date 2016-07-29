@@ -21,6 +21,39 @@
  */
 #define VGA_PHYSICAL_BASE (0xA0000)
 
+/**
+ * DAC read index register.
+ * Writes to this register determine the index
+ * of the next DAC entry to read.
+ */
+#define DAC_READ_INDEX_REG (0x3C7)
+
+/**
+ * DAC data register.
+ * DAC entries are read from and written to here.
+ */
+#define DAC_DATA_REG (0x3C9)
+
+/**
+ * Graphics Controller index register.
+ */
+#define GC_INDEX_REG (0x3CE)
+
+/**
+ * Graphics Controller data register.
+ */
+#define GC_DATA_REG (0x3CF)
+
+/**
+ * Index of the GC Read Map register.
+ */
+#define GC_READ_MAP_INDEX (4)
+
+/**
+ * Index of the GC Mode register.
+ */
+#define GC_MODE_INDEX (5)
+
 
 /** Globals *************************************************************/
 
@@ -185,14 +218,14 @@ vgadump_DumpPalette(
 	//       using an index/data pair.
 	//
 
-	// DAC Address Read Mode Register
-	__outbyte(0x3C7, 0);
+	// Set the first DAC index to read from
+	__outbyte(DAC_READ_INDEX_REG, 0);
 
 	for (nEntry = 0; nEntry < VGA_DAC_PALETTE_ENTRIES; ++nEntry)
 	{
-		ptPaletteEntries[nEntry].nRed =  __inbyte(0x3C9);
-		ptPaletteEntries[nEntry].nGreen = __inbyte(0x3C9);
-		ptPaletteEntries[nEntry].nBlue = __inbyte(0x3C9);
+		ptPaletteEntries[nEntry].nRed =  __inbyte(DAC_DATA_REG);
+		ptPaletteEntries[nEntry].nGreen = __inbyte(DAC_DATA_REG);
+		ptPaletteEntries[nEntry].nBlue = __inbyte(DAC_DATA_REG);
 	}
 }
 
@@ -221,19 +254,35 @@ vgadump_DumpPlane(
 	vgadump_DisableInterrupts();
 	{
 		// Set read mode 0
-		fOldGcMode = vgadump_ReadRegisterByte(0x3CE, 0x3CF, 5);
-		vgadump_WriteRegisterByte(0x3CE, 0x3CF, 5, fOldGcMode & 0x73);
+		fOldGcMode = vgadump_ReadRegisterByte(GC_INDEX_REG,
+											  GC_DATA_REG,
+											  GC_MODE_INDEX);
+		vgadump_WriteRegisterByte(GC_INDEX_REG,
+								  GC_DATA_REG,
+								  GC_MODE_INDEX,
+								  fOldGcMode & (~(1 << 3)));
 
 		// Select the plane
-		nOldPlane = vgadump_ReadRegisterByte(0x3CE, 0x3CF, 4);
-		vgadump_WriteRegisterByte(0x3CE, 0x3CF, 4, (UCHAR)nPlane);
+		nOldPlane = vgadump_ReadRegisterByte(GC_INDEX_REG,
+											 GC_DATA_REG,
+											 GC_READ_MAP_INDEX);
+		vgadump_WriteRegisterByte(GC_INDEX_REG,
+								  GC_DATA_REG,
+								  GC_READ_MAP_INDEX,
+								  (UCHAR)nPlane);
 
 		// Copy the video memory
 		RtlMoveMemory(pvPlane, g_pvVgaBase, cbPlane);
 
 		// Restore values
-		vgadump_WriteRegisterByte(0x3CE, 0x3CF, 4, nOldPlane);
-		vgadump_WriteRegisterByte(0x3CE, 0x3CF, 5, fOldGcMode);
+		vgadump_WriteRegisterByte(GC_INDEX_REG,
+								  GC_DATA_REG,
+								  GC_READ_MAP_INDEX,
+								  nOldPlane);
+		vgadump_WriteRegisterByte(GC_INDEX_REG,
+								  GC_DATA_REG,
+								  GC_MODE_INDEX,
+								  fOldGcMode);
 	}
 	vgadump_EnableInterrupts();
 }
