@@ -191,6 +191,48 @@ vgadump_DumpPalette(
 }
 
 /**
+ * Dumps a single VGA plane.
+ *
+ * @param[in]	nPlane	Index of the plane to dump.
+ * @param[out]	pvPlane	Will receive the plane's data.
+ * @param[in]	cbPlane	Size of the output buffer, in bytes.
+ */
+STATIC
+VOID
+vgadump_DumpPlane(
+	_In_							ULONG	nPlane,
+	_Out_writes_bytes_all_(cbPlane)	PVOID	pvPlane,
+	_In_							ULONG	cbPlane
+)
+{
+	UCHAR	fOldGcMode	= 0;
+	UCHAR	nOldPlane	= 0;
+
+	ASSERT(nPlane < VGA_PLANES);
+	ASSERT(NULL != pvPlane);
+	ASSERT(0 != cbPlane);
+
+	vgadump_DisableInterrupts();
+	{
+		// Set read mode 0
+		fOldGcMode = vgadump_ReadRegisterByte(0x3CE, 0x3CF, 5);
+		vgadump_WriteRegisterByte(0x3CE, 0x3CF, 5, fOldGcMode & 0x73);
+
+		// Select the plane
+		nOldPlane = vgadump_ReadRegisterByte(0x3CE, 0x3CF, 4);
+		vgadump_WriteRegisterByte(0x3CE, 0x3CF, 4, (UCHAR)nPlane);
+
+		// Copy the video memory
+		RtlMoveMemory(pvPlane, g_pvVgaBase, cbPlane);
+
+		// Restore values
+		vgadump_WriteRegisterByte(0x3CE, 0x3CF, 4, nOldPlane);
+		vgadump_WriteRegisterByte(0x3CE, 0x3CF, 5, fOldGcMode);
+	}
+	vgadump_EnableInterrupts();
+}
+
+/**
  * Bugcheck callback for dumping the VGA video memory.
  *
  * @param[in]		eReason					Specifies the situation in which the callback is executed.
@@ -210,6 +252,7 @@ vgadump_BugCheckSecondaryDumpDataCallback(
 )
 {
 	PKBUGCHECK_SECONDARY_DUMP_DATA	ptSecondaryDumpData	= (PKBUGCHECK_SECONDARY_DUMP_DATA)pvReasonSpecificData;
+	ULONG							nPlane				= 0;
 
 	ASSERT(KbCallbackSecondaryDumpData == eReason);
 	ASSERT(NULL != ptRecord);
@@ -232,6 +275,13 @@ vgadump_BugCheckSecondaryDumpDataCallback(
 	if (NULL == ptSecondaryDumpData->OutBuffer)
 	{
 		vgadump_DumpPalette(g_tDump.anPalette);
+
+		for (nPlane = 0; nPlane < VGA_PLANES; ++nPlane)
+		{
+			vgadump_DumpPlane(nPlane,
+							  g_tDump.atPlanes[nPlane],
+							  sizeof(g_tDump.atPlanes[nPlane]));
+		}
 	}
 
 	ptSecondaryDumpData->OutBuffer = &g_tDump;
