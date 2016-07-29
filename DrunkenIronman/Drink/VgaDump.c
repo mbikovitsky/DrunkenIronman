@@ -53,8 +53,39 @@ STATIC DECLSPEC_ALIGN(PAGE_SIZE) VGA_DUMP g_tDump = { 0 };
 STATIC CONST GUID g_tDumpGuid = 
 { 0xc2b07ffc, 0x519a, 0x45e2, { 0x8a, 0x97, 0xc7, 0xb2, 0x42, 0x91, 0x18, 0x2c } };
 
+/**
+ * Counts how many times interrupts have been disabled.
+ */
+STATIC ULONG g_nInterruptDisableCount = 0;
+
 
 /** Functions ***********************************************************/
+
+/**
+ * Disables interrupts.
+ */
+STATIC
+VOID
+vgadump_DisableInterrupts(VOID)
+{
+	if (0 == g_nInterruptDisableCount++)
+	{
+		_disable();
+	}
+}
+
+/**
+ * Enables interrupts.
+ */
+STATIC
+VOID
+vgadump_EnableInterrupts(VOID)
+{
+	if (0 == --g_nInterruptDisableCount)
+	{
+		_enable();
+	}
+}
 
 /**
  * Dumps the VGA's DAC palette to the given buffer.
