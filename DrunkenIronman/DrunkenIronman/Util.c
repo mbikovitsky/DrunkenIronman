@@ -95,8 +95,8 @@ lblCleanup:
 HRESULT
 UTIL_ReadResource(
 	_In_										HMODULE	hModule,
-	_In_										PCTSTR	pszResourceName,
-	_In_										PCTSTR	pszResourceType,
+	_In_										PCWSTR	pszResourceName,
+	_In_										PCWSTR	pszResourceType,
 	_In_										WORD	eLanguage,
 	_Outptr_result_bytebuffer_(*pcbResource)	PVOID *	ppvResource,
 	_Out_										PDWORD	pcbResource

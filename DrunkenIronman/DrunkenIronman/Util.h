@@ -98,11 +98,31 @@ UTIL_IsWow64Process(
 	_Out_	PBOOL	pbWow64Process
 );
 
+/**
+ * Reads a resource from a loaded image.
+ *
+ * @param[in]	hModule			Image to read the resource from.
+ * @param[in]	pszResourceName	The resource name.
+ *								This is the same as the lpName parameter
+ *								in the FindResourceEx function.
+ * @param[in]	pszResourceType	The resource type.
+ *								This is the same as the lpType parameter
+ *								in the FindResourceEx function.
+ * @param[in]	eLanguage		Language of the resource to retrieve.
+ *								This is the same as the wLanguage parameter
+ *								in the FindResourceEx function.
+ * @param[out]	ppvResource		Will receive a copy of the resource's data.
+ * @param[out]	pcbResource		Will receive the size of the resource.
+ *
+ * @returns HRESULT
+ *
+ * @see FindResourceEx
+ */
 HRESULT
 UTIL_ReadResource(
 	_In_										HMODULE	hModule,
-	_In_										PCTSTR	pszResourceName,
-	_In_										PCTSTR	pszResourceType,
+	_In_										PCWSTR	pszResourceName,
+	_In_										PCWSTR	pszResourceType,
 	_In_										WORD	eLanguage,
 	_Outptr_result_bytebuffer_(*pcbResource)	PVOID *	ppvResource,
 	_Out_										PDWORD	pcbResource
