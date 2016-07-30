@@ -7,6 +7,9 @@
     <Filter Include="VgaDump">
       <UniqueIdentifier>{2d18c3e2-567f-4d3c-bf23-a0391bf455cf}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MessageTable">
+      <UniqueIdentifier>{5e7abd98-19bb-4cee-9c96-afae4fd7ca57}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Driver.c">
@@ -15,10 +18,16 @@
     <ClCompile Include="VgaDump.c">
       <Filter>VgaDump</Filter>
     </ClCompile>
+    <ClCompile Include="MessageTable.c">
+      <Filter>MessageTable</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="VgaDump.h">
       <Filter>VgaDump</Filter>
+    </ClInclude>
+    <ClInclude Include="MessageTable.h">
+      <Filter>MessageTable</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
