@@ -32,7 +32,9 @@
     <ClInclude Include="Precomp.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Resource.rc" />
+    <ResourceCompile Include="Resource.rc">
+      <AdditionalIncludeDirectories>$(OutDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{8BE6DAED-7FC8-4234-8F0F-B3C1A13FEC03}</ProjectGuid>

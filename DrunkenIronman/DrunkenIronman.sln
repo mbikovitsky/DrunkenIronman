@@ -4,6 +4,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DrunkenIronman", "DrunkenIronman\DrunkenIronman.vcxproj", "{8BE6DAED-7FC8-4234-8F0F-B3C1A13FEC03}"
+	ProjectSection(ProjectDependencies) = postProject
+		{63F38659-A757-4CBE-B92D-A9FEE1E1D5CF} = {63F38659-A757-4CBE-B92D-A9FEE1E1D5CF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Drink", "Drink\Drink.vcxproj", "{63F38659-A757-4CBE-B92D-A9FEE1E1D5CF}"
 EndProject
