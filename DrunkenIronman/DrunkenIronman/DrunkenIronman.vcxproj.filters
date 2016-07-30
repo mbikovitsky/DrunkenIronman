@@ -28,5 +28,6 @@
     <ClInclude Include="DumpParse.h">
       <Filter>DumpParse</Filter>
     </ClInclude>
+    <ClInclude Include="Main_Internal.h" />
   </ItemGroup>
 </Project>
