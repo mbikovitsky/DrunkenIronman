@@ -15,6 +15,7 @@
 
 #include "Util.h"
 #include "DumpParse.h"
+#include "Resource.h"
 
 #include "Main_Internal.h"
 
@@ -28,6 +29,11 @@ STATIC CONST SUBFUNCTION_HANDLER_ENTRY g_atSubfunctionHandlers[] = {
 	{
 		L"convert",
 		&main_HandleConvert
+	},
+
+	{
+		L"bugshot",
+		&main_HandleBugshot
 	},
 };
 
@@ -237,6 +243,97 @@ lblCleanup:
 	HEAPFREE(ptBitmap);
 	HEAPFREE(ptDump);
 	CLOSE(hDump, DUMPPARSE_Close);
+
+	return hrResult;
+}
+
+STATIC
+HRESULT
+main_HandleBugshot(
+	_In_					INT				nArguments,
+	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
+)
+{
+	HRESULT		hrResult							= E_FAIL;
+	PVOID		pvDriver							= NULL;
+	DWORD		cbDriver							= 0;
+	PWSTR		pwszTempDriverPath					= NULL;
+	SC_HANDLE	hServiceControlManager				= NULL;
+	SC_HANDLE	hDriverService						= NULL;
+
+	assert(0 != nArguments);
+	assert(NULL != ppwszArguments);
+
+	hrResult = UTIL_ReadResource(GetModuleHandleW(NULL),
+								 MAKEINTRESOURCEW(IDR_DRIVER),
+								 L"BINARY",
+								 MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL),
+								 &pvDriver,
+								 &cbDriver);
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	hrResult = UTIL_WriteToTemporaryFile(pvDriver,
+										 cbDriver,
+										 &pwszTempDriverPath);
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	hServiceControlManager = OpenSCManagerW(NULL,
+											SERVICES_ACTIVE_DATABASE,
+											SC_MANAGER_CREATE_SERVICE);
+	if (NULL == hServiceControlManager)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	hDriverService = CreateServiceW(hServiceControlManager,
+									L"Drink",
+									NULL,
+									SERVICE_START | DELETE,
+									SERVICE_KERNEL_DRIVER,
+									SERVICE_DEMAND_START,
+									SERVICE_ERROR_IGNORE,
+									pwszTempDriverPath,
+									NULL,
+									NULL,
+									NULL,
+									NULL,
+									NULL);
+	if (NULL == hDriverService)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	if (!StartServiceW(hDriverService,
+					   0,
+					   NULL))
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	hrResult = S_OK;
+
+lblCleanup:
+	if (NULL != hDriverService)
+	{
+		(VOID)DeleteService(hDriverService);
+	}
+	CLOSE(hDriverService, CloseServiceHandle);
+	CLOSE(hServiceControlManager, CloseServiceHandle);
+	if (NULL != pwszTempDriverPath)
+	{
+		(VOID)DeleteFileW(pwszTempDriverPath);
+	}
+	HEAPFREE(pwszTempDriverPath);
+	HEAPFREE(pvDriver);
 
 	return hrResult;
 }

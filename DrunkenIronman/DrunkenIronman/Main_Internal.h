@@ -176,3 +176,22 @@ main_HandleConvert(
 	_In_					INT				nArguments,
 	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
 );
+
+/**
+ * Handler for the "bugshot" subfunction.
+ * Loads the driver and instructs it to take
+ * a screenshot on the next bugheck.
+ *
+ * @param[in]	nArguments		Number of command line arguments.
+ * @param[in]	ppwszArguments	The command line arguments.
+ *
+ * @returns HRESULT
+ *
+ * @see something
+ */
+STATIC
+HRESULT
+main_HandleBugshot(
+	_In_					INT				nArguments,
+	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
+);
