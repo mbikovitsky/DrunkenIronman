@@ -7,9 +7,11 @@
     <Filter Include="DumpParse">
       <UniqueIdentifier>{03ea08ce-870f-483f-8203-534f9ef64292}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Main">
+      <UniqueIdentifier>{1bbcd625-b6f1-477a-854c-d36619d685df}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Main.c" />
     <ClCompile Include="Util.c">
       <Filter>Util</Filter>
     </ClCompile>
@@ -18,6 +20,9 @@
     </ClCompile>
     <ClCompile Include="DbgEngGuids.c">
       <Filter>DumpParse</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.c">
+      <Filter>Main</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -28,6 +33,8 @@
     <ClInclude Include="DumpParse.h">
       <Filter>DumpParse</Filter>
     </ClInclude>
-    <ClInclude Include="Main_Internal.h" />
+    <ClInclude Include="Main_Internal.h">
+      <Filter>Main</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
