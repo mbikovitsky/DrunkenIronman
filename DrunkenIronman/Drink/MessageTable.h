@@ -38,6 +38,23 @@ MESSAGETABLE_Create(
 );
 
 /**
+ * Creates a message table by parsing a message table resource.
+ *
+ * @param[in]	pvMessageTableResource	Resource buffer to parse.
+ * @param[in]	cbMessageTableResource	Size of the buffer, in bytes.
+ * @param[out]	phMessageTable	Will receive a handle
+								to the message table.
+ *
+ * @returns NTSTATUS
+ */
+NTSTATUS
+MESSAGETABLE_CreateFromResource(
+	_In_reads_bytes_(cbMessageTableResource)	PVOID			pvMessageTableResource,
+	_In_										ULONG			cbMessageTableResource,
+	_Out_										PHMESSAGETABLE	phMessageTable
+);
+
+/**
  * Destroys a message table.
  *
  * @param[in]	hMessageTable	Message table to destroy.

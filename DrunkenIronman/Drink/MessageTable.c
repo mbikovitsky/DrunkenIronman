@@ -8,6 +8,7 @@
 
 /** Headers *************************************************************/
 #include <ntifs.h>
+#include <ntstrsafe.h>
 
 #include <Common.h>
 
@@ -47,6 +48,41 @@ typedef struct _MESSAGE_TABLE_ENTRY
 	} tData;
 } MESSAGE_TABLE_ENTRY, *PMESSAGE_TABLE_ENTRY;
 typedef CONST MESSAGE_TABLE_ENTRY *PCMESSAGE_TABLE_ENTRY;
+
+/**
+ * Contains the error message or message box display text
+ * for a message table resource.
+ */
+typedef struct _MESSAGE_RESOURCE_ENTRY
+{
+	USHORT	cbLength;
+	USHORT	fFlags;
+	UCHAR	acText[ANYSIZE_ARRAY];
+} MESSAGE_RESOURCE_ENTRY, *PMESSAGE_RESOURCE_ENTRY;
+typedef CONST MESSAGE_RESOURCE_ENTRY *PCMESSAGE_RESOURCE_ENTRY;
+
+/**
+ * Contains information about message strings with identifiers
+ * in the range indicated by the nLowId and nHighId members.
+ */
+typedef struct _MESSAGE_RESOURCE_BLOCK
+{
+	ULONG	nLowId;
+	ULONG	nHighId;
+	ULONG	nOffsetToEntries;
+} MESSAGE_RESOURCE_BLOCK, *PMESSAGE_RESOURCE_BLOCK;
+typedef CONST MESSAGE_RESOURCE_BLOCK *PCMESSAGE_RESOURCE_BLOCK;
+
+/**
+ * Contains information about formatted text for display as an
+ * error message or in a message box in a message table resource.
+ */
+typedef struct _MESSAGE_RESOURCE_DATA
+{
+	ULONG					nBlocks;
+	MESSAGE_RESOURCE_BLOCK	atBlocks[ANYSIZE_ARRAY];
+} MESSAGE_RESOURCE_DATA, *PMESSAGE_RESOURCE_DATA;
+typedef CONST MESSAGE_RESOURCE_DATA *PCMESSAGE_RESOURCE_DATA;
 
 
 /** Functions ***********************************************************/
@@ -274,6 +310,120 @@ lblCleanup:
 	return bIsValid;
 }
 
+/**
+ * Inserts an ANSI message resource entry
+ * into a message table.
+ *
+ * @param[in]	hMessageTable	Message table to insert into.
+ * @param[in]	nEntryId		ID of the string to insert.
+ * @param[in]	ptResourceEntry	The resource entry.
+ *
+ * @returns NTSTATUS
+ *
+ * @remark	It is up to the caller to verify that
+ *			the resource entry is indeed an ANSI
+ *			resource entry.
+ */
+STATIC
+NTSTATUS
+messagetable_InsertResourceEntryAnsi(
+	_In_	HMESSAGETABLE				hMessageTable,
+	_In_	ULONG						nEntryId,
+	_In_	PCMESSAGE_RESOURCE_ENTRY	ptResourceEntry
+)
+{
+	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
+	ANSI_STRING	sString		= { 0 };
+	size_t		cbString	= 0;
+
+	PAGED_CODE();
+
+	ASSERT(NULL != hMessageTable);
+	ASSERT(NULL != ptResourceEntry);
+	ASSERT(0 == ptResourceEntry->fFlags);
+
+	sString.Buffer = (PCHAR)&(ptResourceEntry->acText[0]);
+	sString.MaximumLength = ptResourceEntry->cbLength - FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText);
+	eStatus = RtlStringCbLengthA(sString.Buffer,
+								 sString.MaximumLength,
+								 &cbString);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+	sString.Length = (USHORT)cbString;
+
+	eStatus = MESSAGETABLE_InsertAnsi(hMessageTable,
+									  nEntryId,
+									  &sString);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	return eStatus;
+}
+
+/**
+ * Inserts a Unicode message resource entry
+ * into a message table.
+ *
+ * @param[in]	hMessageTable	Message table to insert into.
+ * @param[in]	nEntryId		ID of the string to insert.
+ * @param[in]	ptResourceEntry	The resource entry.
+ *
+ * @returns NTSTATUS
+ *
+ * @remark	It is up to the caller to verify that
+ *			the resource entry is indeed a Unicode
+ *			resource entry.
+ */
+STATIC
+NTSTATUS
+messagetable_InsertResourceEntryUnicode(
+	_In_	HMESSAGETABLE				hMessageTable,
+	_In_	ULONG						nEntryId,
+	_In_	PCMESSAGE_RESOURCE_ENTRY	ptResourceEntry
+)
+{
+	NTSTATUS		eStatus		= STATUS_UNSUCCESSFUL;
+	UNICODE_STRING	usString	= { 0 };
+	size_t			cbString	= 0;
+
+	PAGED_CODE();
+
+	ASSERT(NULL != hMessageTable);
+	ASSERT(NULL != ptResourceEntry);
+	ASSERT(1 == ptResourceEntry->fFlags);
+
+	usString.Buffer = (PWCHAR)&(ptResourceEntry->acText[0]);
+	usString.MaximumLength = ptResourceEntry->cbLength - FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText);
+	eStatus = RtlUnalignedStringCbLengthW(usString.Buffer,
+										  usString.MaximumLength,
+										  &cbString);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+	usString.Length = (USHORT)cbString;
+
+	eStatus = MESSAGETABLE_InsertUnicode(hMessageTable,
+										 nEntryId,
+										 &usString);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	return eStatus;
+}
+
 NTSTATUS
 MESSAGETABLE_Create(
 	_Out_	PHMESSAGETABLE	phMessageTable
@@ -313,6 +463,90 @@ MESSAGETABLE_Create(
 
 lblCleanup:
 	CLOSE(ptContext, ExFreePool);
+
+	return eStatus;
+}
+
+NTSTATUS
+MESSAGETABLE_CreateFromResource(
+	_In_reads_bytes_(cbMessageTableResource)	PVOID			pvMessageTableResource,
+	_In_										ULONG			cbMessageTableResource,
+	_Out_										PHMESSAGETABLE	phMessageTable
+)
+{
+	NTSTATUS					eStatus			= STATUS_UNSUCCESSFUL;
+	HMESSAGETABLE				hMessageTable	= NULL;
+	CONST UCHAR *				pcOrigin		= (CONST UCHAR *)pvMessageTableResource;
+	PCMESSAGE_RESOURCE_DATA		ptResourceData	= (PCMESSAGE_RESOURCE_DATA)pvMessageTableResource;
+	ULONG						nCurrentBlock	= 0;
+	PCMESSAGE_RESOURCE_BLOCK	ptCurrentBlock	= NULL;
+	ULONG						nCurrentId		= 0;
+	PCMESSAGE_RESOURCE_ENTRY	ptCurrentEntry	= NULL;
+
+	PAGED_CODE();
+
+	if ((NULL == pvMessageTableResource) ||
+		(0 == cbMessageTableResource) ||
+		(NULL == phMessageTable))
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	eStatus = MESSAGETABLE_Create(&hMessageTable);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	for (nCurrentBlock = 0;
+		 nCurrentBlock < ptResourceData->nBlocks;
+		 ++nCurrentBlock)
+	{
+		ptCurrentBlock = &(ptResourceData->atBlocks[nCurrentBlock]);
+
+		nCurrentId = ptCurrentBlock->nLowId;
+		ptCurrentEntry = (PCMESSAGE_RESOURCE_ENTRY)(pcOrigin + ptCurrentBlock->nOffsetToEntries);
+		while (nCurrentId <= ptCurrentBlock->nHighId)
+		{
+			if (1 == ptCurrentEntry->fFlags)
+			{
+				// This is a Unicode string.
+				eStatus = messagetable_InsertResourceEntryUnicode(hMessageTable,
+																  nCurrentId,
+																  ptCurrentEntry);
+			}
+			else if (0 == ptCurrentEntry->fFlags)
+			{
+				// This is an ANSI string.
+				eStatus = messagetable_InsertResourceEntryAnsi(hMessageTable,
+															   nCurrentId,
+															   ptCurrentEntry);
+			}
+			else
+			{
+				// Wat.
+				ASSERT(FALSE);
+				eStatus = STATUS_INTERNAL_DB_CORRUPTION;
+			}
+			if (!NT_SUCCESS(eStatus))
+			{
+				goto lblCleanup;
+			}
+
+			++nCurrentId;
+			ptCurrentEntry = (PCMESSAGE_RESOURCE_ENTRY)((PUCHAR)ptCurrentEntry + ptCurrentEntry->cbLength);
+		}
+	}
+
+	// Transfer ownership:
+	*phMessageTable = hMessageTable;
+	hMessageTable = NULL;
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	CLOSE(hMessageTable, MESSAGETABLE_Destroy);
 
 	return eStatus;
 }
