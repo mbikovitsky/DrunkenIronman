@@ -80,13 +80,6 @@ STATIC BOOLEAN g_bCallbackRegistered = FALSE;
 STATIC DECLSPEC_ALIGN(PAGE_SIZE) VGA_DUMP g_tDump = { 0 };
 
 /**
- * {c2b07ffc-519a-45e2-8a97-c7b24291182c}
- * GUID for tagging the saved VGA dump in the dump file.
- */
-STATIC CONST GUID g_tDumpGuid = 
-{ 0xc2b07ffc, 0x519a, 0x45e2, { 0x8a, 0x97, 0xc7, 0xb2, 0x42, 0x91, 0x18, 0x2c } };
-
-/**
  * Counts how many times interrupts have been disabled.
  */
 STATIC ULONG g_nInterruptDisableCount = 0;
@@ -341,7 +334,7 @@ vgadump_BugCheckSecondaryDumpDataCallback(
 
 	ptSecondaryDumpData->OutBuffer = &g_tDump;
 	ptSecondaryDumpData->OutBufferLength = sizeof(g_tDump);
-	ptSecondaryDumpData->Guid = g_tDumpGuid;
+	ptSecondaryDumpData->Guid = g_tVgaDumpGuid;
 
 lblCleanup:
 	return;

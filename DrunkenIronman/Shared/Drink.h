@@ -36,6 +36,13 @@ C_ASSERT(PIXELS_IN_BYTE == 8);
  */
 #define VGA_DAC_PALETTE_ENTRIES (256)
 
+/**
+ * {ab490092-9446-4088-901b-b6a801cd6c75}
+ * GUID for tagging the saved VGA dump in the dump file.
+ */
+EXTERN_C CONST GUID DECLSPEC_SELECTANY g_tVgaDumpGuid =
+{ 0xab490092, 0x9446, 0x4088, { 0x90, 0x1b, 0xb6, 0xa8, 0x01, 0xcd, 0x6c, 0x75 } };
+
 
 /** Typedefs ************************************************************/
 
