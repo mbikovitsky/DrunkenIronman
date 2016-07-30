@@ -4,11 +4,20 @@
     <Filter Include="Util">
       <UniqueIdentifier>{552296db-0d26-405c-a6c3-f03beee73e45}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DumpParse">
+      <UniqueIdentifier>{03ea08ce-870f-483f-8203-534f9ef64292}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.c" />
     <ClCompile Include="Util.c">
       <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="DumpParse.c">
+      <Filter>DumpParse</Filter>
+    </ClCompile>
+    <ClCompile Include="DbgEngGuids.c">
+      <Filter>DumpParse</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -16,5 +25,8 @@
       <Filter>Util</Filter>
     </ClInclude>
     <ClInclude Include="Precomp.h" />
+    <ClInclude Include="DumpParse.h">
+      <Filter>DumpParse</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

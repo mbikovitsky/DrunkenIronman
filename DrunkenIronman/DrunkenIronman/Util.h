@@ -50,6 +50,16 @@
  */
 #define CLOSE_FILE_HANDLE(hFile) CLOSE_TO_VALUE((hFile), CloseHandle, INVALID_HANDLE_VALUE)
 
+/**
+ * Releases an object that implements IUnknown.
+ */
+#define RELEASE(piObject)						\
+	if (NULL != (piObject))						\
+	{											\
+		(piObject)->lpVtbl->Release(piObject);	\
+		(piObject) = NULL;						\
+	}
+
 
 HRESULT
 UTIL_IsWow64Process(
