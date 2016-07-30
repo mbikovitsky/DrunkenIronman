@@ -57,10 +57,12 @@ DriverEntry(
 
 	PAGED_CODE();
 
-	UNREFERENCED_PARAMETER(ptDriverObject);
 	UNREFERENCED_PARAMETER(pusRegistryPath);
 
+	ASSERT(NULL != ptDriverObject);
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
+
+	ptDriverObject->DriverUnload = &driver_Unload;
 
 	eStatus = VGADUMP_Initialize();
 	if (!NT_SUCCESS(eStatus))
