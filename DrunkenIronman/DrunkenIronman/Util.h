@@ -14,16 +14,6 @@
 /** Macros **************************************************************/
 
 /**
- * Allocates memory from the process heap.
- */
-#define HEAPALLOC(cbSize) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (cbSize))
-
-/**
- * Frees memory allocated from the process heap.
- */
-#define HEAPFREE(pvMemory) HeapFree(GetProcessHeap(), 0, (pvMemory))
-
-/**
  * Closes an object using a destructor function,
  * then resets the object to the given invalid value.
  * Optionally passes additional arguments to the destructor.
@@ -71,6 +61,37 @@
 		(piObject) = NULL;						\
 	}
 
+/**
+ * Allocates memory from the process heap.
+ */
+#define HEAPALLOC(cbSize) HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (cbSize))
+
+/**
+ * Frees memory allocated from the process heap,
+ * then resets the pointer to NULL.
+ */
+#define HEAPFREE(pvMemory) CLOSE((pvMemory), util_HeapFree)
+
+
+/** Functions ***********************************************************/
+
+/**
+ * Frees memory allocated from the process heap.
+ *
+ * @param[in]	pvMemory	Memory to free.
+ */
+STATIC
+FORCEINLINE
+VOID
+util_HeapFree(
+	_In_	PVOID	pvMemory
+)
+{
+	if (NULL != pvMemory)
+	{
+		(VOID)HeapFree(GetProcessHeap(), 0, pvMemory);
+	}
+}
 
 HRESULT
 UTIL_IsWow64Process(
