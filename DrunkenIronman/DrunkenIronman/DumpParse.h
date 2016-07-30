@@ -48,3 +48,23 @@ VOID
 DUMPPARSE_Close(
 	_In_	HDUMP	hDump
 );
+
+/**
+ * Reads tagged data from the dump file.
+ *
+ * @param[in]	hDump	Dump file to read from.
+ * @param[in]	ptTag	Tag identifying the data to read.
+ * @param[out]	ppvData	Will receive the read data.
+ * @param[out]	pcbData	Will receive the read data's size, in bytes.
+ *
+ * @returns HRESULT
+ *
+ * @remark Free the returned buffer to the process heap.
+ */
+HRESULT
+DUMPPARSE_ReadTagged(
+	_In_									HDUMP	hDump,
+	_In_									LPCGUID	ptTag,
+	_Outptr_result_bytebuffer_(*pcbData)	PVOID *	ppvData,
+	_Out_									PDWORD	pcbData
+);

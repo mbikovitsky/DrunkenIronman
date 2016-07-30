@@ -1,2 +1,2 @@
-#define INITGUID
+#include <initguid.h>
 #include <DbgEng.h>

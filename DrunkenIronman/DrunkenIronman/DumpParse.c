@@ -129,3 +129,80 @@ DUMPPARSE_Close(
 lblCleanup:
 	return;
 }
+
+HRESULT
+DUMPPARSE_ReadTagged(
+	_In_									HDUMP	hDump,
+	_In_									LPCGUID	ptTag,
+	_Outptr_result_bytebuffer_(*pcbData)	PVOID *	ppvData,
+	_Out_									PDWORD	pcbData
+)
+{
+	HRESULT				hrResult			= E_FAIL;
+	PDUMP_FILE_CONTEXT	ptContext			= (PDUMP_FILE_CONTEXT)hDump;
+	IDebugClient4 *		piDebugClient		= NULL;
+	IDebugDataSpaces3 *	piDebugDataSpaces	= NULL;
+	ULONG				cbData				= 0;
+	PVOID				pvData				= NULL;
+
+	C_ASSERT(sizeof(*pcbData) == sizeof(cbData));
+
+	if ((NULL == hDump) ||
+		(NULL == ptTag) ||
+		(NULL == ppvData) ||
+		(NULL == pcbData))
+	{
+		hrResult = E_INVALIDARG;
+		goto lblCleanup;
+	}
+
+	piDebugClient = ptContext->piDebugClient;
+
+	hrResult = piDebugClient->lpVtbl->QueryInterface(piDebugClient,
+													 &IID_IDebugDataSpaces3,
+													 &piDebugDataSpaces);
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	hrResult = piDebugDataSpaces->lpVtbl->ReadTagged(piDebugDataSpaces,
+													 (LPGUID)ptTag,
+													 0,
+													 NULL, 0,
+													 &cbData);
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	pvData = HEAPALLOC(cbData);
+	if (NULL == pvData)
+	{
+		hrResult = E_OUTOFMEMORY;
+		goto lblCleanup;
+	}
+
+	hrResult = piDebugDataSpaces->lpVtbl->ReadTagged(piDebugDataSpaces,
+													 (LPGUID)ptTag,
+													 0,
+													 pvData, cbData,
+													 NULL);
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	// Transfer ownership:
+	*ppvData = pvData;
+	pvData = NULL;
+	*pcbData = cbData;
+
+	hrResult = S_OK;
+
+lblCleanup:
+	HEAPFREE(pvData);
+	RELEASE(piDebugDataSpaces);
+
+	return hrResult;
+}
