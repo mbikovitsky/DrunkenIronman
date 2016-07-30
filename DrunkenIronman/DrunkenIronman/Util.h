@@ -125,3 +125,19 @@ UTIL_RegGetValue(
 	_Out_									PDWORD	pcbData,
 	_Out_									PDWORD	peType
 );
+
+/**
+ * Expands environment variables in a string.
+ *
+ * @param[in]	pwszSource		String to process.
+ * @param[out]	ppwszExpanded	Will receive the expanded string.
+ *
+ * @returns HRESULT
+ *
+ * @remark Free the returned string to the process heap.
+ */
+HRESULT
+UTIL_ExpandEnvironmentStrings(
+	_In_		PCWSTR	pwszSource,
+	_Outptr_	PWSTR *	ppwszExpanded
+);

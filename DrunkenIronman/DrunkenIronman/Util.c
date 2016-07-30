@@ -528,3 +528,53 @@ lblCleanup:
 
 	return hrResult;
 }
+
+HRESULT
+UTIL_ExpandEnvironmentStrings(
+	_In_		PCWSTR	pwszSource,
+	_Outptr_	PWSTR *	ppwszExpanded
+)
+{
+	HRESULT	hrResult		= E_FAIL;
+	DWORD	cchExpanded		= 0;
+	PWSTR	pwszExpanded	= NULL;
+
+	if ((NULL == pwszSource) ||
+		(NULL == ppwszExpanded))
+	{
+		hrResult = E_INVALIDARG;
+		goto lblCleanup;
+	}
+
+	cchExpanded = ExpandEnvironmentStringsW(pwszSource, NULL, 0);
+	if (0 == cchExpanded)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	pwszExpanded = HEAPALLOC(cchExpanded * sizeof(pwszExpanded[0]));
+	if (NULL == pwszExpanded)
+	{
+		hrResult = E_OUTOFMEMORY;
+		goto lblCleanup;
+	}
+
+	cchExpanded = ExpandEnvironmentStringsW(pwszSource, pwszExpanded, cchExpanded);
+	if (0 == cchExpanded)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	// Transfer ownership:
+	*ppwszExpanded = pwszExpanded;
+	pwszExpanded = NULL;
+
+	hrResult = S_OK;
+
+lblCleanup:
+	HEAPFREE(pwszExpanded);
+
+	return hrResult;
+}
