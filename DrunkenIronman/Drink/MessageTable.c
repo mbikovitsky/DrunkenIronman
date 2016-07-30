@@ -225,6 +225,55 @@ lblCleanup:
 	return bIsValid;
 }
 
+/**
+ * Determines whether a UNICODE_STRING structure
+ * is valid for use in a message table.
+ *
+ * @param[in]	pusString	String to check.
+ *
+ * @returns BOOLEAN
+ */
+STATIC
+BOOLEAN
+messagetable_IsValidUnicodeString(
+	_In_opt_	PCUNICODE_STRING	pusString
+)
+{
+	BOOLEAN	bIsValid	= FALSE;
+
+	if (NULL == pusString)
+	{
+		goto lblCleanup;
+	}
+
+	if (NULL == pusString->Buffer)
+	{
+		goto lblCleanup;
+	}
+
+	if ((0 == pusString->Length) ||
+		(0 == pusString->MaximumLength))
+	{
+		goto lblCleanup;
+	}
+
+	if (pusString->MaximumLength < pusString->Length)
+	{
+		goto lblCleanup;
+	}
+
+	if ((0 != pusString->Length % 2) ||
+		(0 != pusString->MaximumLength % 2))
+	{
+		goto lblCleanup;
+	}
+
+	bIsValid = TRUE;
+
+lblCleanup:
+	return bIsValid;
+}
+
 NTSTATUS
 MESSAGETABLE_Create(
 	_Out_	PHMESSAGETABLE	phMessageTable
@@ -374,6 +423,82 @@ MESSAGETABLE_InsertAnsi(
 
 lblCleanup:
 	CLOSE(pcDuplicateString, ExFreePool);
+
+	return eStatus;
+}
+
+NTSTATUS
+MESSAGETABLE_InsertUnicode(
+	_In_	HMESSAGETABLE		hMessageTable,
+	_In_	ULONG				nEntryId,
+	_In_	PCUNICODE_STRING	pusString
+)
+{
+	NTSTATUS				eStatus				= STATUS_UNSUCCESSFUL;
+	PMESSAGE_TABLE_CONTEXT	ptContext			= (PMESSAGE_TABLE_CONTEXT)hMessageTable;
+	MESSAGE_TABLE_ENTRY		tEntry				= { 0 };
+	PWCHAR					pwcDuplicateString	= NULL;
+	BOOLEAN					bNewElement			= FALSE;
+	PMESSAGE_TABLE_ENTRY	ptInserted			= NULL;
+
+	PAGED_CODE();
+
+	if ((NULL == hMessageTable) ||
+		(!messagetable_IsValidUnicodeString(pusString)))
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	// Allocate memory for a duplicate string.
+	pwcDuplicateString = ExAllocatePoolWithTag(PagedPool,
+											   pusString->Length,
+											   MESSAGE_TABLE_POOL_TAG);
+	if (NULL == pwcDuplicateString)
+	{
+		eStatus = STATUS_INSUFFICIENT_RESOURCES;
+		goto lblCleanup;
+	}
+
+	// Initialize a new entry.
+	RtlMoveMemory(pwcDuplicateString,
+				  pusString->Buffer,
+				  pusString->Length);
+	tEntry.nEntryId = nEntryId;
+	tEntry.bUnicode = TRUE;
+	tEntry.tData.tUnicode.Buffer = pwcDuplicateString;
+	tEntry.tData.tUnicode.Length = pusString->Length;
+	tEntry.tData.tUnicode.MaximumLength = tEntry.tData.tUnicode.Length;
+
+	// Try to insert it into the tree.
+	ptInserted =
+		(PMESSAGE_TABLE_ENTRY)RtlInsertElementGenericTableAvl(&(ptContext->tTable),
+															  &tEntry,
+															  sizeof(tEntry),
+															  &bNewElement);
+	if (NULL == ptInserted)
+	{
+		eStatus = STATUS_INSUFFICIENT_RESOURCES;
+		goto lblCleanup;
+	}
+
+	// If an element with the same ID already exists,
+	// overwrite it.
+	if (!bNewElement)
+	{
+		ASSERT(ptInserted->nEntryId == tEntry.nEntryId);
+
+		messagetable_ClearEntry(ptInserted);
+		RtlMoveMemory(ptInserted, &tEntry, sizeof(*ptInserted));
+	}
+
+	// Transfer ownership:
+	pwcDuplicateString = NULL;
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	CLOSE(pwcDuplicateString, ExFreePool);
 
 	return eStatus;
 }
