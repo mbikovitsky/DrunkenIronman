@@ -46,8 +46,8 @@ main_VgaDacEntryToRgb(
 STATIC
 BYTE
 main_GetPixelBitFromPlane(
-	_In_	PBYTE	pnPlane,
-	_In_	DWORD	nPixelIndex
+	_In_	CONST BYTE *	pnPlane,
+	_In_	DWORD			nPixelIndex
 )
 {
 	BYTE	nByteContainingPixel	= 0;
