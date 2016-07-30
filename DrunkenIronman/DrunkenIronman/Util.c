@@ -421,3 +421,110 @@ lblCleanup:
 
 	return hrResult;
 }
+
+HRESULT
+UTIL_RegGetValue(
+	_In_									HKEY	hKey,
+	_In_opt_								PCWSTR	pwszSubkey,
+	_In_opt_								PCWSTR	pwszValue,
+	_Outptr_result_bytebuffer_(*pcbData)	PVOID *	ppvData,
+	_Out_									PDWORD	pcbData,
+	_Out_									PDWORD	peType
+)
+{
+	HRESULT	hrResult		= E_FAIL;
+	LONG	lResult			= ERROR_SUCCESS;
+	HKEY	hFinalKey		= NULL;
+	BOOL	bCloseFinalKey	= FALSE;
+	DWORD	cbData			= 0;
+	PVOID	pvData			= NULL;
+	DWORD	eType			= REG_NONE;
+
+	if ((NULL == hKey) ||
+		(NULL == ppvData) ||
+		(NULL == pcbData) ||
+		(NULL == peType))
+	{
+		hrResult = E_INVALIDARG;
+		goto lblCleanup;
+	}
+
+	if (NULL != pwszSubkey)
+	{
+		lResult = RegOpenKeyExW(hKey,
+								pwszSubkey,
+								0,
+								KEY_QUERY_VALUE,
+								&hFinalKey);
+		if (ERROR_SUCCESS != lResult)
+		{
+			hrResult = HRESULT_FROM_WIN32(lResult);
+			goto lblCleanup;
+		}
+		bCloseFinalKey = TRUE;
+	}
+	else
+	{
+		hFinalKey = hKey;
+	}
+
+	lResult = RegQueryValueExW(hFinalKey,
+							   pwszValue,
+							   NULL,
+							   NULL,
+							   NULL,
+							   &cbData);
+	if (ERROR_SUCCESS != lResult)
+	{
+		hrResult = HRESULT_FROM_WIN32(lResult);
+		goto lblCleanup;
+	}
+	if (0 == cbData)
+	{
+		hrResult = HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
+		goto lblCleanup;
+	}
+
+	cbData += sizeof(UNICODE_NULL);
+	pvData = HEAPALLOC(cbData);
+	if (NULL == pvData)
+	{
+		hrResult = E_OUTOFMEMORY;
+		goto lblCleanup;
+	}
+
+	lResult = RegQueryValueExW(hFinalKey,
+							   pwszValue,
+							   NULL,
+							   &eType,
+							   pvData,
+							   &cbData);
+	if (ERROR_SUCCESS != lResult)
+	{
+		hrResult = HRESULT_FROM_WIN32(lResult);
+		goto lblCleanup;
+	}
+	if (0 == cbData)
+	{
+		hrResult = HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
+		goto lblCleanup;
+	}
+
+	// Transfer ownership:
+	*ppvData = pvData;
+	pvData = NULL;
+	*pcbData = cbData;
+	*peType = eType;
+
+	hrResult = S_OK;
+
+lblCleanup:
+	HEAPFREE(pvData);
+	if (bCloseFinalKey)
+	{
+		CLOSE(hFinalKey, RegCloseKey);
+		bCloseFinalKey = FALSE;
+	}
+
+	return hrResult;
+}
