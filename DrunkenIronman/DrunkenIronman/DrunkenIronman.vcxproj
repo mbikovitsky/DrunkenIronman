@@ -27,8 +27,12 @@
   <ItemGroup>
     <ClInclude Include="DumpParse.h" />
     <ClInclude Include="Main_Internal.h" />
+    <ClInclude Include="Resource.h" />
     <ClInclude Include="Util.h" />
     <ClInclude Include="Precomp.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{8BE6DAED-7FC8-4234-8F0F-B3C1A13FEC03}</ProjectGuid>

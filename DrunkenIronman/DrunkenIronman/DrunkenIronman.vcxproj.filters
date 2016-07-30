@@ -10,6 +10,9 @@
     <Filter Include="Main">
       <UniqueIdentifier>{1bbcd625-b6f1-477a-854c-d36619d685df}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{2469b910-abd8-498a-ad07-2dbe290580c1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Util.c">
@@ -36,5 +39,13 @@
     <ClInclude Include="Main_Internal.h">
       <Filter>Main</Filter>
     </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>Resources</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc">
+      <Filter>Resources</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>
