@@ -3,7 +3,7 @@
  * @author biko
  * @date 2016-07-30
  *
- * Miscellaneous utilities
+ * Miscellaneous utilities.
  */
 #pragma once
 
@@ -202,4 +202,22 @@ HRESULT
 UTIL_ExpandEnvironmentStrings(
 	_In_		PCWSTR	pwszSource,
 	_Outptr_	PWSTR *	ppwszExpanded
+);
+
+/**
+ * Writes a buffer into a temporary file.
+ *
+ * @param[in]	pvBuffer		Buffer to write.
+ * @param[in]	cbBuffer		Size of the buffer, in bytes.
+ * @param[in]	ppwzTempPath	Will receive the path of the created file.
+ *
+ * @returns HRESULT
+ *
+ * @remark Free the returned path to the process heap.
+ */
+HRESULT
+UTIL_WriteToTemporaryFile(
+	_In_reads_bytes_(cbBuffer)	PVOID	pvBuffer,
+	_In_						DWORD	cbBuffer,
+	_Outptr_					PWSTR *	ppwzTempPath
 );

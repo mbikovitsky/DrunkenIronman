@@ -1,6 +1,19 @@
+/**
+ * @file Util.c
+ * @author biko
+ * @date 2016-07-30
+ *
+ * Miscellaneous utilities - implementation.
+ */
+
+/** Headers *************************************************************/
 #include "Precomp.h"
+#include <strsafe.h>
+
 #include "Util.h"
 
+
+/** Typedefs ************************************************************/
 
 typedef
 BOOL
@@ -49,6 +62,8 @@ FN_NTCREATEFILE(
 );
 typedef FN_NTCREATEFILE *PFN_NTCREATEFILE;
 
+
+/** Functions ***********************************************************/
 
 HRESULT
 UTIL_IsWow64Process(
@@ -575,6 +590,120 @@ UTIL_ExpandEnvironmentStrings(
 
 lblCleanup:
 	HEAPFREE(pwszExpanded);
+
+	return hrResult;
+}
+
+HRESULT
+UTIL_WriteToTemporaryFile(
+	_In_reads_bytes_(cbBuffer)	PVOID	pvBuffer,
+	_In_						DWORD	cbBuffer,
+	_Outptr_					PWSTR *	ppwzTempPath
+)
+{
+	HRESULT	hrResult						= E_FAIL;
+	WCHAR	wszTempDirectory[MAX_PATH + 1]	= { L'\0' };
+	WCHAR	wszTempPath[MAX_PATH]			= { L'\0' };
+	BOOL	bDeleteFile						= FALSE;
+	HANDLE	hTempFile						= INVALID_HANDLE_VALUE;
+	DWORD	cbWritten						= 0;
+	SIZE_T	cchTempPath						= 0;
+	PWSTR	pwszTempPath					= NULL;
+
+	if ((NULL == pvBuffer) ||
+		(0 == cbBuffer) ||
+		(NULL == ppwzTempPath))
+	{
+		hrResult = E_INVALIDARG;
+		goto lblCleanup;
+	}
+
+	//
+	// Create a temporary file.
+	//
+
+	if (0 == GetTempPathW(ARRAYSIZE(wszTempDirectory),
+						  wszTempDirectory))
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	if (0 == GetTempFileNameW(wszTempDirectory,
+							  L"",
+							  0,
+							  wszTempPath))
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+	bDeleteFile = TRUE;
+
+	//
+	// Dump the data into the file.
+	//
+
+	hTempFile = CreateFileW(wszTempPath,
+							GENERIC_WRITE,
+							0,
+							NULL,
+							TRUNCATE_EXISTING,
+							FILE_ATTRIBUTE_NORMAL,
+							NULL);
+	if (INVALID_HANDLE_VALUE == hTempFile)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	if (!WriteFile(hTempFile,
+				   pvBuffer,
+				   cbBuffer,
+				   &cbWritten,
+				   NULL))
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+	if (cbBuffer != cbWritten)
+	{
+		hrResult = E_UNEXPECTED;
+		goto lblCleanup;
+	}
+
+	//
+	// Returns the file's path to the caller.
+	//
+
+	cchTempPath = wcslen(wszTempPath);
+	pwszTempPath = HEAPALLOC(cchTempPath * sizeof(pwszTempPath[0]));
+	if (NULL == pwszTempPath)
+	{
+		hrResult = E_OUTOFMEMORY;
+		goto lblCleanup;
+	}
+
+	hrResult = StringCchCopyW(pwszTempPath, cchTempPath, wszTempPath);
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	// Transfer ownership:
+	*ppwzTempPath = pwszTempPath;
+	pwszTempPath = NULL;
+	bDeleteFile = FALSE;
+
+	hrResult = S_OK;
+
+lblCleanup:
+	HEAPFREE(pwszTempPath);
+	CLOSE_FILE_HANDLE(hTempFile);
+	if (bDeleteFile)
+	{
+		(VOID)DeleteFileW(wszTempPath);
+		bDeleteFile = FALSE;
+	}
 
 	return hrResult;
 }
