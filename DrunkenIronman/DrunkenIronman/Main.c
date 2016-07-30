@@ -35,6 +35,112 @@ STATIC CONST SUBFUNCTION_HANDLER_ENTRY g_atSubfunctionHandlers[] = {
 /** Functions ***********************************************************/
 
 STATIC
+BYTE
+main_VgaDacEntryToRgb(
+	_In_	BYTE	nDacEntry
+)
+{
+	return nDacEntry * (256 / 64);
+}
+
+STATIC
+BYTE
+main_GetPixelBitFromPlane(
+	_In_	PBYTE	pnPlane,
+	_In_	DWORD	nPixelIndex
+)
+{
+	BYTE	nByteContainingPixel	= 0;
+	BYTE	nBit					= 0;
+
+	assert(NULL != pnPlane);
+
+	// Find the byte containing the pixel data required
+	nByteContainingPixel = pnPlane[nPixelIndex / PIXELS_IN_BYTE];
+
+	// Move the relevant bit to be the MSB
+	nBit = nByteContainingPixel;
+	nBit <<= (nPixelIndex % PIXELS_IN_BYTE);
+
+	// Move the relevant bit to be the LSB
+	nBit >>= (PIXELS_IN_BYTE - 1);
+
+	return nBit;
+}
+
+STATIC
+HRESULT
+main_VgaDumpToBitmap(
+	_In_		PCVGA_DUMP		ptDump,
+	_Outptr_	PVGA_BITMAP *	pptBitmap
+)
+{
+	HRESULT		hrResult		= E_FAIL;
+	PVGA_BITMAP	ptBitmap		= NULL;
+	DWORD		nCurrentEntry	= 0;
+	DWORD		nCurrentPixel	= 0;
+	DWORD		nCurrentPlane	= 0;
+	BYTE		nCurrentBit		= 0;
+
+	ptBitmap = HEAPALLOC(sizeof(*ptBitmap));
+	if (NULL == ptBitmap)
+	{
+		hrResult = E_OUTOFMEMORY;
+		goto lblCleanup;
+	}
+
+	// Initialize the file header
+	ptBitmap->tFileHeader.bfType = 'MB';
+	ptBitmap->tFileHeader.bfSize = sizeof(*ptBitmap);
+	ptBitmap->tFileHeader.bfOffBits = FIELD_OFFSET(VGA_BITMAP, anPixels);
+
+	// Initialize the info header
+	ptBitmap->tInfoHeader.biSize = sizeof(ptBitmap->tInfoHeader);
+	ptBitmap->tInfoHeader.biWidth = SCREEN_WIDTH_PIXELS;
+	ptBitmap->tInfoHeader.biHeight = -SCREEN_HEIGHT_PIXELS;		// Negative because otherwise the bitmap
+																// is bottom-up :)
+	ptBitmap->tInfoHeader.biPlanes = 1;
+	ptBitmap->tInfoHeader.biBitCount = 8;
+	ptBitmap->tInfoHeader.biCompression = BI_RGB;
+
+	// Initialize the color palette
+	for (nCurrentEntry = 0;
+		 nCurrentEntry < ARRAYSIZE(ptBitmap->atColors);
+		 ++nCurrentEntry)
+	{
+		ptBitmap->atColors[nCurrentEntry].rgbRed = main_VgaDacEntryToRgb(ptDump->atPaletteEntries[nCurrentEntry].nRed);
+		ptBitmap->atColors[nCurrentEntry].rgbGreen = main_VgaDacEntryToRgb(ptDump->atPaletteEntries[nCurrentEntry].nGreen);
+		ptBitmap->atColors[nCurrentEntry].rgbBlue = main_VgaDacEntryToRgb(ptDump->atPaletteEntries[nCurrentEntry].nBlue);
+	}
+
+	// Set the pixel values
+	for (nCurrentPixel = 0;
+		 nCurrentPixel < ARRAYSIZE(ptBitmap->anPixels);
+		 ++nCurrentPixel)
+	{
+		for (nCurrentPlane = 0;
+			 nCurrentPlane < ARRAYSIZE(ptDump->atPlanes);
+			 ++nCurrentPlane)
+		{
+			nCurrentBit = main_GetPixelBitFromPlane(ptDump->atPlanes[nCurrentPlane],
+													nCurrentPixel);
+			ptBitmap->anPixels[nCurrentPixel] |= nCurrentBit << nCurrentPlane;
+		}
+	}
+
+	// Transfer ownership:
+	*pptBitmap = ptBitmap;
+	ptBitmap = NULL;
+
+	hrResult = S_OK;
+
+lblCleanup:
+	HEAPFREE(ptBitmap);
+
+	return hrResult;
+}
+
+STATIC
 HRESULT
 main_HandleConvert(
 	_In_					INT				nArguments,
@@ -47,6 +153,9 @@ main_HandleConvert(
 	HDUMP		hDump			= NULL;
 	PVGA_DUMP	ptDump			= NULL;
 	DWORD		cbDump			= 0;
+	PVGA_BITMAP	ptBitmap		= NULL;
+	HANDLE		hOutputFile		= INVALID_HANDLE_VALUE;
+	DWORD		cbWritten		= 0;
 
 	assert(0 != nArguments);
 	assert(NULL != ppwszArguments);
@@ -87,9 +196,45 @@ main_HandleConvert(
 		goto lblCleanup;
 	}
 
+	hrResult = main_VgaDumpToBitmap(ptDump, &ptBitmap);
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	hOutputFile = CreateFileW(pwszOutputPath,
+							  GENERIC_WRITE,
+							  0,
+							  NULL,
+							  CREATE_ALWAYS,
+							  FILE_ATTRIBUTE_NORMAL,
+							  NULL);
+	if (INVALID_HANDLE_VALUE == hOutputFile)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	if (!WriteFile(hOutputFile,
+				   ptBitmap,
+				   sizeof(*ptBitmap),
+				   &cbWritten,
+				   NULL))
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+	if (sizeof(*ptBitmap) != cbWritten)
+	{
+		hrResult = E_UNEXPECTED;
+		goto lblCleanup;
+	}
+
 	hrResult = S_OK;
 
 lblCleanup:
+	CLOSE_FILE_HANDLE(hOutputFile);
+	HEAPFREE(ptBitmap);
 	HEAPFREE(ptDump);
 	CLOSE(hDump, DUMPPARSE_Close);
 

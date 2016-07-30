@@ -10,6 +10,8 @@
 /** Headers *************************************************************/
 #include "Precomp.h"
 
+#include <Drink.h>
+
 
 /** Enums ***************************************************************/
 
@@ -92,8 +94,68 @@ typedef struct _SUBFUNCTION_HANDLER_ENTRY
 } SUBFUNCTION_HANDLER_ENTRY, *PSUBFUNCTION_HANDLER_ENTRY;
 typedef CONST SUBFUNCTION_HANDLER_ENTRY *PCSUBFUNCTION_HANDLER_ENTRY;
 
+/**
+ * Structure of the finished BMP on disk.
+ */
+#pragma pack(push, 1)
+typedef struct _VGA_BITMAP
+{
+	BITMAPFILEHEADER	tFileHeader;
+	BITMAPINFOHEADER	tInfoHeader;
+	RGBQUAD				atColors[VGA_DAC_PALETTE_ENTRIES];
+	BYTE				anPixels[SCREEN_WIDTH_PIXELS * SCREEN_HEIGHT_PIXELS];
+} VGA_BITMAP, *PVGA_BITMAP;
+typedef CONST VGA_BITMAP *PCVGA_BITMAP;
+#pragma pack(pop)
+
 
 /** Functions ***********************************************************/
+
+/**
+ * Converts a VGA's DAC color (6-bit) to an RGB value (8-bit).
+ * This function operates on a single color!
+ *
+ * @param[in]	nDacEntry	The DAC entry to convert.
+ *
+ * @returns BYTE
+ */
+STATIC
+BYTE
+main_VgaDacEntryToRgb(
+	_In_	BYTE	nDacEntry
+);
+
+/**
+ * Extracts the bit value of a pixel from a single VGA plane.
+ * The bit values from all 4 planes should be combined
+ * to obtain the index into the Palette RAM.
+ *
+ * @param[in]	pnPlane		The plane data.
+ * @param[in]	nPixelIndex	Index of the pixel.
+ *
+ * @returns BYTE (contains just one bit, the LSB)
+ */
+STATIC
+BYTE
+main_GetPixelBitFromPlane(
+	_In_	PBYTE	pnPlane,
+	_In_	DWORD	nPixelIndex
+);
+
+/**
+ * Converts a VGA dump to a bitmap.
+ *
+ * @param[in]	ptDump		Dump to convert.
+ * @param[out]	pptBitmap	Will receive the converted bitmap.
+ *
+ * @returns HRESULT
+ */
+STATIC
+HRESULT
+main_VgaDumpToBitmap(
+	_In_		PCVGA_DUMP		ptDump,
+	_Outptr_	PVGA_BITMAP *	pptBitmap
+);
 
 /**
  * Handler for the "convert" subfunction.
