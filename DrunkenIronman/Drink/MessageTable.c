@@ -140,6 +140,91 @@ messagetable_FreeRoutine(
 	ExFreePool(pvBuffer);
 }
 
+/**
+ * Clears a message table entry.
+ *
+ * @param[in]	ptEntry	Entry to clear.
+ *
+ * @remark	This does not actually free the entry
+ *			itself, only the pointers within.
+ */
+STATIC
+VOID
+messagetable_ClearEntry(
+	_In_	PMESSAGE_TABLE_ENTRY	ptEntry
+)
+{
+	PAGED_CODE();
+
+	if (NULL == ptEntry)
+	{
+		goto lblCleanup;
+	}
+
+	if (ptEntry->bUnicode)
+	{
+		CLOSE(ptEntry->tData.tUnicode.Buffer, ExFreePool);
+	}
+	else
+	{
+		CLOSE(ptEntry->tData.tAnsi.Buffer, ExFreePool);
+	}
+
+	//
+	// NOTE: DO NOT ZERO THE STRUCTURE!
+	// This function is called before element removal,
+	// and so the rest of the structure's members
+	// are used by the comparison routine
+	// to find the entry to remove.
+	//
+
+lblCleanup:
+	return;
+}
+
+/**
+ * Determines whether an ANSI_STRING structure
+ * is valid for use in a message table.
+ *
+ * @param[in]	psString	String to check.
+ *
+ * @returns BOOLEAN
+ */
+STATIC
+BOOLEAN
+messagetable_IsValidAnsiString(
+	_In_opt_	PCANSI_STRING	psString
+)
+{
+	BOOLEAN	bIsValid	= FALSE;
+
+	if (NULL == psString)
+	{
+		goto lblCleanup;
+	}
+
+	if (NULL == psString->Buffer)
+	{
+		goto lblCleanup;
+	}
+
+	if ((0 == psString->Length) ||
+		(0 == psString->MaximumLength))
+	{
+		goto lblCleanup;
+	}
+
+	if (psString->MaximumLength < psString->Length)
+	{
+		goto lblCleanup;
+	}
+
+	bIsValid = TRUE;
+
+lblCleanup:
+	return bIsValid;
+}
+
 NTSTATUS
 MESSAGETABLE_Create(
 	_Out_	PHMESSAGETABLE	phMessageTable
@@ -189,6 +274,7 @@ MESSAGETABLE_Destroy(
 )
 {
 	PMESSAGE_TABLE_CONTEXT	ptContext	= (PMESSAGE_TABLE_CONTEXT)hMessageTable;
+	PVOID					pvData		= NULL;
 
 	PAGED_CODE();
 
@@ -197,8 +283,97 @@ MESSAGETABLE_Destroy(
 		goto lblCleanup;
 	}
 
+	for (pvData = RtlEnumerateGenericTableAvl(&(ptContext->tTable), TRUE);
+		 NULL != pvData;
+		 pvData = RtlEnumerateGenericTableAvl(&(ptContext->tTable), FALSE))
+	{
+		// Clear the current entry ...
+		messagetable_ClearEntry((PMESSAGE_TABLE_ENTRY)pvData);
+
+		// ... and delete it from the tree.
+		(VOID)RtlDeleteElementGenericTableAvl(&(ptContext->tTable), pvData);
+	}
+
+	ASSERT(RtlIsGenericTableEmptyAvl(&(ptContext->tTable)));
+
 	CLOSE(ptContext, ExFreePool);
 
 lblCleanup:
 	return;
+}
+
+NTSTATUS
+MESSAGETABLE_InsertAnsi(
+	_In_	HMESSAGETABLE	hMessageTable,
+	_In_	ULONG			nEntryId,
+	_In_	PCANSI_STRING	psString
+)
+{
+	NTSTATUS				eStatus				= STATUS_UNSUCCESSFUL;
+	PMESSAGE_TABLE_CONTEXT	ptContext			= (PMESSAGE_TABLE_CONTEXT)hMessageTable;
+	MESSAGE_TABLE_ENTRY		tEntry				= { 0 };
+	PCHAR					pcDuplicateString	= NULL;
+	BOOLEAN					bNewElement			= FALSE;
+	PMESSAGE_TABLE_ENTRY	ptInserted			= NULL;
+
+	PAGED_CODE();
+
+	if ((NULL == hMessageTable) ||
+		(!messagetable_IsValidAnsiString(psString)))
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	// Allocate memory for a duplicate string.
+	pcDuplicateString = ExAllocatePoolWithTag(PagedPool,
+											  psString->Length,
+											  MESSAGE_TABLE_POOL_TAG);
+	if (NULL == pcDuplicateString)
+	{
+		eStatus = STATUS_INSUFFICIENT_RESOURCES;
+		goto lblCleanup;
+	}
+
+	// Initialize a new entry.
+	RtlMoveMemory(pcDuplicateString,
+				  psString->Buffer,
+				  psString->Length);
+	tEntry.nEntryId = nEntryId;
+	tEntry.bUnicode = FALSE;
+	tEntry.tData.tAnsi.Buffer = pcDuplicateString;
+	tEntry.tData.tAnsi.Length = psString->Length;
+	tEntry.tData.tAnsi.MaximumLength = tEntry.tData.tAnsi.Length;
+
+	// Try to insert it into the tree.
+	ptInserted =
+		(PMESSAGE_TABLE_ENTRY)RtlInsertElementGenericTableAvl(&(ptContext->tTable),
+															  &tEntry,
+															  sizeof(tEntry),
+															  &bNewElement);
+	if (NULL == ptInserted)
+	{
+		eStatus = STATUS_INSUFFICIENT_RESOURCES;
+		goto lblCleanup;
+	}
+
+	// If an element with the same ID already exists,
+	// overwrite it.
+	if (!bNewElement)
+	{
+		ASSERT(ptInserted->nEntryId == tEntry.nEntryId);
+
+		messagetable_ClearEntry(ptInserted);
+		RtlMoveMemory(ptInserted, &tEntry, sizeof(*ptInserted));
+	}
+
+	// Transfer ownership:
+	pcDuplicateString = NULL;
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	CLOSE(pcDuplicateString, ExFreePool);
+
+	return eStatus;
 }

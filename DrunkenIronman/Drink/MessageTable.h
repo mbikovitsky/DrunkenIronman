@@ -46,3 +46,22 @@ VOID
 MESSAGETABLE_Destroy(
 	_In_	HMESSAGETABLE	hMessageTable
 );
+
+/**
+ * Inserts an ANSI string into the message table.
+ *
+ * @param[in]	hMessageTable	Message table to insert into.
+ * @param[in]	nEntryId		ID of the string to insert.
+ * @param[in]	psString		String to insert.
+ *
+ * @returns NTSTATUS
+ *
+ * @remark	If an entry with the same ID already exists,
+ *			it is overwritten.
+ */
+NTSTATUS
+MESSAGETABLE_InsertAnsi(
+	_In_	HMESSAGETABLE	hMessageTable,
+	_In_	ULONG			nEntryId,
+	_In_	PCANSI_STRING	psString
+);
