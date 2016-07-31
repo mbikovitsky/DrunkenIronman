@@ -35,21 +35,6 @@ typedef struct _MESSAGE_TABLE_CONTEXT
 typedef CONST MESSAGE_TABLE_CONTEXT *PCMESSAGE_TABLE_CONTEXT;
 
 /**
- * Structure of a single message table entry.
- */
-typedef struct _MESSAGE_TABLE_ENTRY
-{
-	ULONG	nEntryId;
-	BOOLEAN	bUnicode;
-	union
-	{
-		ANSI_STRING		tAnsi;
-		UNICODE_STRING	tUnicode;
-	} tData;
-} MESSAGE_TABLE_ENTRY, *PMESSAGE_TABLE_ENTRY;
-typedef CONST MESSAGE_TABLE_ENTRY *PCMESSAGE_TABLE_ENTRY;
-
-/**
  * Contains the error message or message box display text
  * for a message table resource.
  */
@@ -734,5 +719,49 @@ MESSAGETABLE_InsertUnicode(
 lblCleanup:
 	CLOSE(pwcDuplicateString, ExFreePool);
 
+	return eStatus;
+}
+
+NTSTATUS
+MESSAGETABLE_EnumerateEntries(
+	_In_		HMESSAGETABLE							hMessageTable,
+	_In_		PFN_MESSAGETABLE_ENUMERATION_CALLBACK	pfnCallback,
+	_In_opt_	PVOID									pvContext
+)
+{
+	NTSTATUS				eStatus			= STATUS_UNSUCCESSFUL;
+	PMESSAGE_TABLE_CONTEXT	ptContext		= (PMESSAGE_TABLE_CONTEXT)hMessageTable;
+	PVOID					pvRestartKey	= NULL;
+	PVOID					pvData			= NULL;
+	BOOLEAN					bContinue		= FALSE;
+
+	PAGED_CODE();
+
+	if ((NULL == hMessageTable) ||
+		(NULL == pfnCallback))
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	for (pvData = RtlEnumerateGenericTableWithoutSplayingAvl(&(ptContext->tTable),
+															 &pvRestartKey);
+		 NULL != pvData;
+		 pvData = RtlEnumerateGenericTableWithoutSplayingAvl(&(ptContext->tTable),
+															 &pvRestartKey))
+	{
+		bContinue = TRUE;
+		pfnCallback((PCMESSAGE_TABLE_ENTRY)pvData,
+					pvContext,
+					&bContinue);
+		if (!bContinue)
+		{
+			break;
+		}
+	}
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
 	return eStatus;
 }

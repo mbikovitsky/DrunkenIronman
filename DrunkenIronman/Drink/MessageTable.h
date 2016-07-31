@@ -21,6 +21,42 @@
 DECLARE_HANDLE(HMESSAGETABLE);
 typedef HMESSAGETABLE *PHMESSAGETABLE;
 
+/**
+ * Structure of a single message table entry.
+ */
+typedef struct _MESSAGE_TABLE_ENTRY
+{
+	ULONG	nEntryId;
+	BOOLEAN	bUnicode;
+	union
+	{
+		ANSI_STRING		tAnsi;
+		UNICODE_STRING	tUnicode;
+	} tData;
+} MESSAGE_TABLE_ENTRY, *PMESSAGE_TABLE_ENTRY;
+typedef CONST MESSAGE_TABLE_ENTRY *PCMESSAGE_TABLE_ENTRY;
+
+/**
+ * Callback used when enumerating message table entries.
+ *
+ * @param[in]	ptEntry					Entry currently being enumerated.
+ *										The entry and its contents SHOULD NOT
+ *										be modified by the callback.
+ * @param[in]	pvContext				Context specified when invoking the enumeration
+ *										function.
+ * @param[out]	pbContinueEnumeration	The callback should set this to FALSE to
+ *										abort the enumeration. The enumeration function
+ *										sets this to TRUE before invoking the callback.
+ */
+typedef
+VOID
+FN_MESSAGETABLE_ENUMERATION_CALLBACK(
+	_In_		PCMESSAGE_TABLE_ENTRY	ptEntry,
+	_In_opt_	PVOID					pvContext,
+	_Out_		PBOOLEAN				pbContinueEnumeration
+);
+typedef FN_MESSAGETABLE_ENUMERATION_CALLBACK *PFN_MESSAGETABLE_ENUMERATION_CALLBACK;
+
 
 /** Functions ***********************************************************/
 
@@ -100,4 +136,27 @@ MESSAGETABLE_InsertUnicode(
 	_In_	HMESSAGETABLE		hMessageTable,
 	_In_	ULONG				nEntryId,
 	_In_	PCUNICODE_STRING	pusString
+);
+
+/**
+ * Enumerates all entries in a message table.
+ * The enumeration is performed in ascending ID order.
+ *
+ * @param[in]	hMessageTable	Message table to enumerate.
+ * @param[in]	pfnCallback		Enumeration callback.
+ * @param[in]	pvContext		Optional arbitrary context to be
+ *								passed to the callback.
+ *
+ * @returns NTSTATUS
+ *
+ * @remark	There is no return value reserved
+ *			for indicating an aborted enumeration.
+ *			It is up to the caller to determine
+ *			whether the callback aborted the enumeration.
+ */
+NTSTATUS
+MESSAGETABLE_EnumerateEntries(
+	_In_		HMESSAGETABLE							hMessageTable,
+	_In_		PFN_MESSAGETABLE_ENUMERATION_CALLBACK	pfnCallback,
+	_In_opt_	PVOID									pvContext
 );
