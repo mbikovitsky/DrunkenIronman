@@ -42,6 +42,8 @@ typedef CONST MESSAGE_TABLE_ENTRY *PCMESSAGE_TABLE_ENTRY;
  * @param[in]	ptEntry					Entry currently being enumerated.
  *										The entry and its contents SHOULD NOT
  *										be modified by the callback.
+ * @param[in]	ptPreviousEntry			Previous entry, or NULL if this is the first
+ *										invocation of the callback.
  * @param[in]	pvContext				Context specified when invoking the enumeration
  *										function.
  * @param[out]	pbContinueEnumeration	The callback should set this to FALSE to
@@ -52,6 +54,7 @@ typedef
 VOID
 FN_MESSAGETABLE_ENUMERATION_CALLBACK(
 	_In_		PCMESSAGE_TABLE_ENTRY	ptEntry,
+	_In_opt_	PCMESSAGE_TABLE_ENTRY	ptPreviousEntry,
 	_In_opt_	PVOID					pvContext,
 	_Out_		PBOOLEAN				pbContinueEnumeration
 );

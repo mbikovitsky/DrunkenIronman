@@ -733,6 +733,8 @@ MESSAGETABLE_EnumerateEntries(
 	PMESSAGE_TABLE_CONTEXT	ptContext		= (PMESSAGE_TABLE_CONTEXT)hMessageTable;
 	PVOID					pvRestartKey	= NULL;
 	PVOID					pvData			= NULL;
+	PCMESSAGE_TABLE_ENTRY	ptPrevious		= NULL;
+	PCMESSAGE_TABLE_ENTRY	ptCurrent		= NULL;
 	BOOLEAN					bContinue		= FALSE;
 
 	PAGED_CODE();
@@ -750,14 +752,19 @@ MESSAGETABLE_EnumerateEntries(
 		 pvData = RtlEnumerateGenericTableWithoutSplayingAvl(&(ptContext->tTable),
 															 &pvRestartKey))
 	{
+		ptCurrent = (PCMESSAGE_TABLE_ENTRY)pvData;
+
 		bContinue = TRUE;
-		pfnCallback((PCMESSAGE_TABLE_ENTRY)pvData,
+		pfnCallback(ptCurrent,
+					ptPrevious,
 					pvContext,
 					&bContinue);
 		if (!bContinue)
 		{
 			break;
 		}
+
+		ptPrevious = ptCurrent;
 	}
 
 	eStatus = STATUS_SUCCESS;
