@@ -404,16 +404,36 @@ messagetable_InsertResourceEntryAnsi(
 	ASSERT(NULL != ptResourceEntry);
 	ASSERT(0 == ptResourceEntry->fFlags);
 
+	// Set the pointer to the buffer.
 	sString.Buffer = (PCHAR)&(ptResourceEntry->acText[0]);
-	sString.MaximumLength = ptResourceEntry->cbLength - FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText);
+
+	// Set the string's maximum size (buffer size).
+	eStatus = RtlUShortSub(ptResourceEntry->cbLength,
+						   FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText),
+						   &(sString.MaximumLength));
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Calculate the size of the null-terminated string.
 	eStatus = RtlStringCbLengthA(sString.Buffer,
 								 sString.MaximumLength,
 								 &cbString);
 	if (!NT_SUCCESS(eStatus))
 	{
+		// On failure, assume the string is simply
+		// not terminated.
+		ASSERT(STATUS_INVALID_PARAMETER == eStatus);
+		cbString = sString.MaximumLength;
+	}
+
+	// Convert the calculated size.
+	eStatus = RtlSizeTToUShort(cbString, &(sString.Length));
+	if (!NT_SUCCESS(eStatus))
+	{
 		goto lblCleanup;
 	}
-	sString.Length = (USHORT)cbString;
 
 	eStatus = MESSAGETABLE_InsertAnsi(hMessageTable,
 									  nEntryId,
@@ -461,16 +481,36 @@ messagetable_InsertResourceEntryUnicode(
 	ASSERT(NULL != ptResourceEntry);
 	ASSERT(1 == ptResourceEntry->fFlags);
 
+	// Set the pointer to the buffer.
 	usString.Buffer = (PWCHAR)&(ptResourceEntry->acText[0]);
-	usString.MaximumLength = ptResourceEntry->cbLength - FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText);
+
+	// Set the string's maximum size (buffer size).
+	eStatus = RtlUShortSub(ptResourceEntry->cbLength,
+						   FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText),
+						   &(usString.MaximumLength));
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Calculate the size of the null-terminated string.
 	eStatus = RtlUnalignedStringCbLengthW(usString.Buffer,
 										  usString.MaximumLength,
 										  &cbString);
 	if (!NT_SUCCESS(eStatus))
 	{
+		// On failure, assume the string is simply
+		// not terminated.
+		ASSERT(STATUS_INVALID_PARAMETER == eStatus);
+		cbString = usString.MaximumLength;
+	}
+
+	// Convert the calculated size.
+	eStatus = RtlSizeTToUShort(cbString, &(usString.Length));
+	if (!NT_SUCCESS(eStatus))
+	{
 		goto lblCleanup;
 	}
-	usString.Length = (USHORT)cbString;
 
 	eStatus = MESSAGETABLE_InsertUnicode(hMessageTable,
 										 nEntryId,
