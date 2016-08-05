@@ -21,11 +21,11 @@
 /**
  * Contains the state of the message table.
  */
-typedef struct _MESSAGE_TABLE_CONTEXT
+typedef struct _MESSAGE_TABLE
 {
 	RTL_AVL_TABLE	tTable;
-} MESSAGE_TABLE_CONTEXT, *PMESSAGE_TABLE_CONTEXT;
-typedef CONST MESSAGE_TABLE_CONTEXT *PCMESSAGE_TABLE_CONTEXT;
+} MESSAGE_TABLE, *PMESSAGE_TABLE;
+typedef CONST MESSAGE_TABLE *PCMESSAGE_TABLE;
 
 /**
  * Contains the error message or message box display text
@@ -710,8 +710,8 @@ MESSAGETABLE_Create(
 	_Out_	PHMESSAGETABLE	phMessageTable
 )
 {
-	NTSTATUS				eStatus		= STATUS_UNSUCCESSFUL;
-	PMESSAGE_TABLE_CONTEXT	ptContext	= NULL;
+	NTSTATUS		eStatus			= STATUS_UNSUCCESSFUL;
+	PMESSAGE_TABLE	ptMessageTable	= NULL;
 
 	PAGED_CODE();
 
@@ -721,29 +721,29 @@ MESSAGETABLE_Create(
 		goto lblCleanup;
 	}
 
-	ptContext = ExAllocatePoolWithTag(PagedPool,
-									  sizeof(*ptContext),
-									  MESSAGE_TABLE_POOL_TAG);
-	if (NULL == ptContext)
+	ptMessageTable = ExAllocatePoolWithTag(PagedPool,
+										   sizeof(*ptMessageTable),
+										   MESSAGE_TABLE_POOL_TAG);
+	if (NULL == ptMessageTable)
 	{
 		eStatus = STATUS_INSUFFICIENT_RESOURCES;
 		goto lblCleanup;
 	}
 
-	RtlInitializeGenericTableAvl(&(ptContext->tTable),
+	RtlInitializeGenericTableAvl(&(ptMessageTable->tTable),
 								 &messagetable_CompareRoutine,
 								 &messagetable_AllocateRoutine,
 								 &messagetable_FreeRoutine,
 								 NULL);
 
 	// Transfer ownership:
-	*phMessageTable = (HMESSAGETABLE)ptContext;
-	ptContext = NULL;
+	*phMessageTable = (HMESSAGETABLE)ptMessageTable;
+	ptMessageTable = NULL;
 
 	eStatus = STATUS_SUCCESS;
 
 lblCleanup:
-	CLOSE(ptContext, ExFreePool);
+	CLOSE(ptMessageTable, ExFreePool);
 
 	return eStatus;
 }
@@ -837,8 +837,8 @@ MESSAGETABLE_Destroy(
 	_In_	HMESSAGETABLE	hMessageTable
 )
 {
-	PMESSAGE_TABLE_CONTEXT	ptContext	= (PMESSAGE_TABLE_CONTEXT)hMessageTable;
-	PVOID					pvData		= NULL;
+	PMESSAGE_TABLE	ptMessageTable	= (PMESSAGE_TABLE)hMessageTable;
+	PVOID			pvData			= NULL;
 
 	PAGED_CODE();
 
@@ -847,20 +847,21 @@ MESSAGETABLE_Destroy(
 		goto lblCleanup;
 	}
 
-	for (pvData = RtlEnumerateGenericTableAvl(&(ptContext->tTable), TRUE);
+	for (pvData = RtlEnumerateGenericTableAvl(&(ptMessageTable->tTable), TRUE);
 		 NULL != pvData;
-		 pvData = RtlEnumerateGenericTableAvl(&(ptContext->tTable), FALSE))
+		 pvData = RtlEnumerateGenericTableAvl(&(ptMessageTable->tTable), FALSE))
 	{
 		// Clear the current entry ...
 		messagetable_ClearEntry((PMESSAGE_TABLE_ENTRY)pvData);
 
 		// ... and delete it from the tree.
-		(VOID)RtlDeleteElementGenericTableAvl(&(ptContext->tTable), pvData);
+		(VOID)RtlDeleteElementGenericTableAvl(&(ptMessageTable->tTable),
+											  pvData);
 	}
 
-	ASSERT(RtlIsGenericTableEmptyAvl(&(ptContext->tTable)));
+	ASSERT(RtlIsGenericTableEmptyAvl(&(ptMessageTable->tTable)));
 
-	CLOSE(ptContext, ExFreePool);
+	CLOSE(ptMessageTable, ExFreePool);
 
 lblCleanup:
 	return;
@@ -874,7 +875,7 @@ MESSAGETABLE_InsertAnsi(
 )
 {
 	NTSTATUS				eStatus				= STATUS_UNSUCCESSFUL;
-	PMESSAGE_TABLE_CONTEXT	ptContext			= (PMESSAGE_TABLE_CONTEXT)hMessageTable;
+	PMESSAGE_TABLE			ptMessageTable		= (PMESSAGE_TABLE)hMessageTable;
 	MESSAGE_TABLE_ENTRY		tEntry				= { 0 };
 	PCHAR					pcDuplicateString	= NULL;
 	BOOLEAN					bNewElement			= FALSE;
@@ -911,7 +912,7 @@ MESSAGETABLE_InsertAnsi(
 
 	// Try to insert it into the tree.
 	ptInserted =
-		(PMESSAGE_TABLE_ENTRY)RtlInsertElementGenericTableAvl(&(ptContext->tTable),
+		(PMESSAGE_TABLE_ENTRY)RtlInsertElementGenericTableAvl(&(ptMessageTable->tTable),
 															  &tEntry,
 															  sizeof(tEntry),
 															  &bNewElement);
@@ -950,7 +951,7 @@ MESSAGETABLE_InsertUnicode(
 )
 {
 	NTSTATUS				eStatus				= STATUS_UNSUCCESSFUL;
-	PMESSAGE_TABLE_CONTEXT	ptContext			= (PMESSAGE_TABLE_CONTEXT)hMessageTable;
+	PMESSAGE_TABLE			ptMessageTable		= (PMESSAGE_TABLE)hMessageTable;
 	MESSAGE_TABLE_ENTRY		tEntry				= { 0 };
 	PWCHAR					pwcDuplicateString	= NULL;
 	BOOLEAN					bNewElement			= FALSE;
@@ -987,7 +988,7 @@ MESSAGETABLE_InsertUnicode(
 
 	// Try to insert it into the tree.
 	ptInserted =
-		(PMESSAGE_TABLE_ENTRY)RtlInsertElementGenericTableAvl(&(ptContext->tTable),
+		(PMESSAGE_TABLE_ENTRY)RtlInsertElementGenericTableAvl(&(ptMessageTable->tTable),
 															  &tEntry,
 															  sizeof(tEntry),
 															  &bNewElement);
@@ -1026,7 +1027,7 @@ MESSAGETABLE_EnumerateEntries(
 )
 {
 	NTSTATUS				eStatus			= STATUS_UNSUCCESSFUL;
-	PMESSAGE_TABLE_CONTEXT	ptContext		= (PMESSAGE_TABLE_CONTEXT)hMessageTable;
+	PMESSAGE_TABLE			ptMessageTable	= (PMESSAGE_TABLE)hMessageTable;
 	PVOID					pvRestartKey	= NULL;
 	PVOID					pvData			= NULL;
 	PCMESSAGE_TABLE_ENTRY	ptPrevious		= NULL;
@@ -1042,10 +1043,10 @@ MESSAGETABLE_EnumerateEntries(
 		goto lblCleanup;
 	}
 
-	for (pvData = RtlEnumerateGenericTableWithoutSplayingAvl(&(ptContext->tTable),
+	for (pvData = RtlEnumerateGenericTableWithoutSplayingAvl(&(ptMessageTable->tTable),
 															 &pvRestartKey);
 		 NULL != pvData;
-		 pvData = RtlEnumerateGenericTableWithoutSplayingAvl(&(ptContext->tTable),
+		 pvData = RtlEnumerateGenericTableWithoutSplayingAvl(&(ptMessageTable->tTable),
 															 &pvRestartKey))
 	{
 		ptCurrent = (PCMESSAGE_TABLE_ENTRY)pvData;
