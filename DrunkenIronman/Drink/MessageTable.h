@@ -163,3 +163,22 @@ MESSAGETABLE_EnumerateEntries(
 	_In_		PFN_MESSAGETABLE_ENUMERATION_CALLBACK	pfnCallback,
 	_In_opt_	PVOID									pvContext
 );
+
+/**
+ * Serializes a message table to a message table resource.
+ *
+ * @param[in]	hMessageTable			Message table to serialize.
+ * @param[out]	ppvMessageTableResource	Will receive the serialized message table.
+ * @param[in]	pcbMessageTableResource	Will receive the serialized table's size, in bytes.
+ *
+ * @returns NTSTATUS
+ *
+ * @remark	The returned buffer is allocated from the _paged_ pool.
+ *			Free it using ExFreePool.
+ */
+NTSTATUS
+MESSAGETABLE_Serialize(
+	_In_													HMESSAGETABLE	hMessageTable,
+	_Outptr_result_bytebuffer_(*pcbMessageTableResource)	PVOID *			ppvMessageTableResource,
+	_Out_													PSIZE_T			pcbMessageTableResource
+);

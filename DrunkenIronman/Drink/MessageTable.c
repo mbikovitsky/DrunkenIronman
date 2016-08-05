@@ -9,18 +9,11 @@
 /** Headers *************************************************************/
 #include <ntifs.h>
 #include <ntstrsafe.h>
+#include <ntintsafe.h>
 
 #include <Common.h>
 
 #include "MessageTable.h"
-
-
-/** Constants ***********************************************************/
-
-/**
- * Pool tag for allocations made by this module.
- */
-#define MESSAGE_TABLE_POOL_TAG (RtlUlongByteSwap('MsgT'))
 
 
 /** Typedefs ************************************************************/
@@ -68,6 +61,80 @@ typedef struct _MESSAGE_RESOURCE_DATA
 	MESSAGE_RESOURCE_BLOCK	atBlocks[ANYSIZE_ARRAY];
 } MESSAGE_RESOURCE_DATA, *PMESSAGE_RESOURCE_DATA;
 typedef CONST MESSAGE_RESOURCE_DATA *PCMESSAGE_RESOURCE_DATA;
+
+/**
+ * Context for the counting callback.
+ *
+ * @see messagetable_CountingCallback.
+ */
+typedef struct _COUNTING_CALLBACK_CONTEXT
+{
+	// Total blocks required to serialize the table.
+	ULONG	nBlocks;
+
+	// Total bytes required to serialize the strings in the table.
+	SIZE_T	cbTotalStrings;
+} COUNTING_CALLBACK_CONTEXT, *PCOUNTING_CALLBACK_CONTEXT;
+typedef CONST COUNTING_CALLBACK_CONTEXT *PCCOUNTING_CALLBACK_CONTEXT;
+
+/**
+ * Context for the serializing callback.
+ *
+ * @see messagetable_SerializingCallback.
+ */
+typedef struct _SERIALIZING_CALLBACK_CONTEXT
+{
+	PMESSAGE_RESOURCE_DATA	ptMessageData;
+
+	ULONG					nCurrentBlock;
+
+	PUCHAR					pcCurrentStringPosition;
+} SERIALIZING_CALLBACK_CONTEXT, *PSERIALIZING_CALLBACK_CONTEXT;
+typedef CONST SERIALIZING_CALLBACK_CONTEXT *PCSERIALIZING_CALLBACK_CONTEXT;
+
+
+/** Constants ***********************************************************/
+
+/**
+ * Pool tag for allocations made by this module.
+ */
+#define MESSAGE_TABLE_POOL_TAG (RtlUlongByteSwap('MsgT'))
+
+/**
+ * Maximum size, in bytes, of a Unicode string that
+ * can be stored in a message table. The size is
+ * constrained by the ability to serialize the string
+ * into a MESSAGE_RESOURCE_ENTRY.
+ *
+ * @remark	This definition assumes that the size field in
+ *			the MESSAGE_RESOURCE_ENTRY structure is a USHORT
+ *			or larger.
+ * @remark	A valid UNICODE_STRING may actually be shorter
+ *			than the size defined here.
+ *			This is validated via messagetable_IsValidUnicodeString.
+ *
+ * @see MESSAGE_RESOURCE_ENTRY.
+ * @see messagetable_IsValidUnicodeString.
+ */
+#define MESSAGE_TABLE_UNICODE_STRING_MAX_SIZE \
+	(MAXUSHORT - FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText) - sizeof(UNICODE_NULL))
+C_ASSERT(MESSAGE_TABLE_UNICODE_STRING_MAX_SIZE > 0);
+
+/**
+ * Maximum size, in bytes, of an ANSI string that
+ * can be stored in a message table. The size is
+ * constrained by the ability to serialize the string
+ * into a MESSAGE_RESOURCE_ENTRY.
+ *
+ * @remark	This definition assumes that the size field in
+ *			the MESSAGE_RESOURCE_ENTRY structure is a USHORT
+ *			or larger.
+ *
+ * @see MESSAGE_RESOURCE_ENTRY.
+ */
+#define MESSAGE_TABLE_ANSI_STRING_MAX_SIZE \
+	(MAXUSHORT - FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText) - sizeof(ANSI_NULL))
+C_ASSERT(MESSAGE_TABLE_ANSI_STRING_MAX_SIZE > 0);
 
 
 /** Functions ***********************************************************/
@@ -240,6 +307,11 @@ messagetable_IsValidAnsiString(
 		goto lblCleanup;
 	}
 
+	if (psString->Length > MESSAGE_TABLE_ANSI_STRING_MAX_SIZE)
+	{
+		goto lblCleanup;
+	}
+
 	bIsValid = TRUE;
 
 lblCleanup:
@@ -285,6 +357,11 @@ messagetable_IsValidUnicodeString(
 
 	if ((0 != pusString->Length % 2) ||
 		(0 != pusString->MaximumLength % 2))
+	{
+		goto lblCleanup;
+	}
+
+	if (pusString->Length > MESSAGE_TABLE_UNICODE_STRING_MAX_SIZE)
 	{
 		goto lblCleanup;
 	}
@@ -407,6 +484,185 @@ messagetable_InsertResourceEntryUnicode(
 
 lblCleanup:
 	return eStatus;
+}
+
+/**
+ * Calculates the size of a message table entry
+ * in its serialized form.
+ *
+ * @param[in]	ptEntry	Entry to operate on.
+ *
+ * @returns USHORT.
+ */
+STATIC
+USHORT
+messagetable_SizeofSerializedEntry(
+	_In_	PCMESSAGE_TABLE_ENTRY	ptEntry
+)
+{
+	NTSTATUS	eStatus	= STATUS_UNSUCCESSFUL;
+	USHORT		cbTotal	= 0;
+
+	PAGED_CODE();
+
+	ASSERT(NULL != ptEntry);
+
+	cbTotal = FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText);
+	if (ptEntry->bUnicode)
+	{
+		eStatus = RtlUShortAdd(cbTotal,
+							   ptEntry->tData.tUnicode.Length,
+							   &cbTotal);
+		ASSERT(NT_SUCCESS(eStatus));
+
+		eStatus = RtlUShortAdd(cbTotal,
+							   sizeof(UNICODE_NULL),
+							   &cbTotal);
+		ASSERT(NT_SUCCESS(eStatus));
+	}
+	else
+	{
+		eStatus = RtlUShortAdd(cbTotal,
+							   ptEntry->tData.tAnsi.Length,
+							   &cbTotal);
+		ASSERT(NT_SUCCESS(eStatus));
+
+		eStatus = RtlUShortAdd(cbTotal,
+							   sizeof(ANSI_NULL),
+							   &cbTotal);
+		ASSERT(NT_SUCCESS(eStatus));
+	}
+
+	return cbTotal;
+}
+
+/**
+ * Callback for counting the number of blocks
+ * in the serialized message table and the
+ * total size required for the serialized strings.
+ *
+ * @param[in]	ptEntry					Entry currently being enumerated.
+ *										Previous entry, or NULL if this is the first
+ *										invocation of the callback.
+ * @param[in]	pvContext				Alias for PCOUNTING_CALLBACK_CONTEXT.
+ * @param[out]	pbContinueEnumeration	Ignored. Enumeration always continues.
+ *
+ * @see COUNTING_CALLBACK_CONTEXT.
+ */
+STATIC
+VOID
+messagetable_CountingCallback(
+	_In_		PCMESSAGE_TABLE_ENTRY	ptEntry,
+	_In_opt_	PCMESSAGE_TABLE_ENTRY	ptPreviousEntry,
+	_In_		PVOID					pvContext,
+	_Out_		PBOOLEAN				pbContinueEnumeration
+)
+{
+	NTSTATUS					eStatus		= STATUS_UNSUCCESSFUL;
+	PCOUNTING_CALLBACK_CONTEXT	ptContext	= (PCOUNTING_CALLBACK_CONTEXT)pvContext;
+
+	PAGED_CODE();
+
+	ASSERT(NULL != ptEntry);
+	ASSERT(NULL != pvContext);
+	ASSERT(NULL != pbContinueEnumeration);
+	ASSERT(*pbContinueEnumeration);
+
+	if ((NULL == ptPreviousEntry) ||
+		(1 != ptEntry->nEntryId - ptPreviousEntry->nEntryId))
+	{
+		// This is either the first time we entered the callback,
+		// or the current ID begins a new block.
+		eStatus = RtlULongAdd(ptContext->nBlocks,
+							  1,
+							  &(ptContext->nBlocks));
+		ASSERT(NT_SUCCESS(eStatus));
+	}
+
+	// Add the size for the current string.
+	eStatus = RtlSIZETAdd(ptContext->cbTotalStrings,
+						  messagetable_SizeofSerializedEntry(ptEntry),
+						  &(ptContext->cbTotalStrings));
+	ASSERT(NT_SUCCESS(eStatus));
+}
+
+/**
+ * Callback for serializing message table entries.
+ * Writes each entry to an allocated buffer.
+ *
+ * @param[in]	ptEntry					Entry currently being enumerated.
+ *										Previous entry, or NULL if this is the first
+ *										invocation of the callback.
+ * @param[in]	pvContext				Alias for PSERIALIZING_CALLBACK_CONTEXT.
+ * @param[out]	pbContinueEnumeration	Ignored. Enumeration always continues.
+ *
+ * @see SERIALIZING_CALLBACK_CONTEXT.
+ */
+STATIC
+VOID
+messagetable_SerializingCallback(
+	_In_		PCMESSAGE_TABLE_ENTRY	ptEntry,
+	_In_opt_	PCMESSAGE_TABLE_ENTRY	ptPreviousEntry,
+	_In_		PVOID					pvContext,
+	_Out_		PBOOLEAN				pbContinueEnumeration
+)
+{
+	NTSTATUS						eStatus			= STATUS_UNSUCCESSFUL;
+	PSERIALIZING_CALLBACK_CONTEXT	ptContext		= (PSERIALIZING_CALLBACK_CONTEXT)pvContext;
+	PMESSAGE_RESOURCE_BLOCK			ptCurrentBlock	= NULL;
+	PMESSAGE_RESOURCE_ENTRY			ptCurrentEntry	= NULL;
+
+	PAGED_CODE();
+
+	ASSERT(NULL != ptEntry);
+	ASSERT(NULL != pvContext);
+	ASSERT(NULL != pbContinueEnumeration);
+	ASSERT(*pbContinueEnumeration);
+
+	// Obtain a pointer to the current block header
+	ptCurrentBlock = &(ptContext->ptMessageData->atBlocks[ptContext->nCurrentBlock]);
+
+	// If there is a new block, set it up
+	if ((NULL == ptPreviousEntry) ||
+		(1 != ptEntry->nEntryId - ptPreviousEntry->nEntryId))
+	{
+		//
+		// New block!
+		//
+
+		eStatus = RtlULongAdd(ptContext->nCurrentBlock,
+							  1,
+							  &(ptContext->nCurrentBlock));
+		ASSERT(NT_SUCCESS(eStatus));
+
+		++ptCurrentBlock;
+
+		ptCurrentBlock->nLowId = ptEntry->nEntryId;
+		ptCurrentBlock->nOffsetToEntries = RtlPointerToOffset(ptContext->ptMessageData,
+															  ptContext->pcCurrentStringPosition);
+	}
+
+	// Update the last ID for the current block
+	ptCurrentBlock->nHighId = ptEntry->nEntryId;
+
+	// Copy
+	ptCurrentEntry = (PMESSAGE_RESOURCE_ENTRY)(ptContext->pcCurrentStringPosition);
+	ptCurrentEntry->cbLength = messagetable_SizeofSerializedEntry(ptEntry);
+	if (ptEntry->bUnicode)
+	{
+		ptCurrentEntry->fFlags = 1;
+		RtlMoveMemory(ptCurrentEntry->acText,
+					  ptEntry->tData.tUnicode.Buffer,
+					  ptEntry->tData.tUnicode.Length);
+	}
+	else
+	{
+		ptCurrentEntry->fFlags = 0;
+		RtlMoveMemory(ptCurrentEntry->acText,
+					  ptEntry->tData.tAnsi.Buffer,
+					  ptEntry->tData.tAnsi.Length);
+	}
+	ptContext->pcCurrentStringPosition += ptCurrentEntry->cbLength;
 }
 
 NTSTATUS
@@ -770,5 +1026,86 @@ MESSAGETABLE_EnumerateEntries(
 	eStatus = STATUS_SUCCESS;
 
 lblCleanup:
+	return eStatus;
+}
+
+NTSTATUS
+MESSAGETABLE_Serialize(
+	_In_													HMESSAGETABLE	hMessageTable,
+	_Outptr_result_bytebuffer_(*pcbMessageTableResource)	PVOID *			ppvMessageTableResource,
+	_Out_													PSIZE_T			pcbMessageTableResource
+)
+{
+	NTSTATUS						eStatus				= STATUS_UNSUCCESSFUL;
+	COUNTING_CALLBACK_CONTEXT		tCountingContext	= { 0 };
+	SIZE_T							cbHeader			= 0;
+	SIZE_T							cbTotal				= 0;
+	PMESSAGE_RESOURCE_DATA			ptMessageData		= NULL;
+	SERIALIZING_CALLBACK_CONTEXT	tSerializingContext	= { 0 };
+
+	PAGED_CODE();
+
+	if ((NULL == hMessageTable) ||
+		(NULL == ppvMessageTableResource) ||
+		(NULL == pcbMessageTableResource))
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	eStatus = MESSAGETABLE_EnumerateEntries(hMessageTable,
+											&messagetable_CountingCallback,
+											&tCountingContext);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Calculate the size of the header
+	eStatus = RtlSIZETAdd(FIELD_OFFSET(MESSAGE_RESOURCE_DATA, atBlocks),
+						  tCountingContext.nBlocks * sizeof(ptMessageData->atBlocks[0]),
+						  &cbHeader);
+	ASSERT(NT_SUCCESS(eStatus));
+
+	// Calculate the total size
+	eStatus = RtlSIZETAdd(tCountingContext.cbTotalStrings,
+						  cbHeader,
+						  &cbTotal);
+	ASSERT(NT_SUCCESS(eStatus));
+
+	// Allocate memory for everything
+	ptMessageData = ExAllocatePoolWithTag(PagedPool, cbTotal, MESSAGE_TABLE_POOL_TAG);
+	if (NULL == ptMessageData)
+	{
+		eStatus = STATUS_INSUFFICIENT_RESOURCES;
+		goto lblCleanup;
+	}
+	RtlSecureZeroMemory(ptMessageData, cbTotal);
+
+	// Initialize the header
+	ptMessageData->nBlocks = tCountingContext.nBlocks;
+
+	// Serialize
+	tSerializingContext.ptMessageData = ptMessageData;
+	tSerializingContext.nCurrentBlock = (ULONG)-1;
+	tSerializingContext.pcCurrentStringPosition = (PUCHAR)RtlOffsetToPointer(tSerializingContext.ptMessageData,
+																			 cbHeader);
+	eStatus = MESSAGETABLE_EnumerateEntries(hMessageTable,
+											&messagetable_SerializingCallback,
+											&tSerializingContext);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Transfer ownership:
+	*ppvMessageTableResource = ptMessageData;
+	ptMessageData = NULL;
+	*pcbMessageTableResource = cbTotal;
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	CLOSE(ptMessageData, ExFreePool);
 	return eStatus;
 }
