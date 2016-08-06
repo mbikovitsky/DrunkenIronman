@@ -13,6 +13,9 @@
     <Filter Include="Resources">
       <UniqueIdentifier>{2469b910-abd8-498a-ad07-2dbe290580c1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DrinkControl">
+      <UniqueIdentifier>{80f419ea-8d20-4052-8321-7ddcd78e3acd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Util.c">
@@ -26,6 +29,9 @@
     </ClCompile>
     <ClCompile Include="Main.c">
       <Filter>Main</Filter>
+    </ClCompile>
+    <ClCompile Include="DrinkControl.c">
+      <Filter>DrinkControl</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -41,6 +47,9 @@
     </ClInclude>
     <ClInclude Include="Resource.h">
       <Filter>Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="DrinkControl.h">
+      <Filter>DrinkControl</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -20,11 +20,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DbgEngGuids.c" />
+    <ClCompile Include="DrinkControl.c" />
     <ClCompile Include="DumpParse.c" />
     <ClCompile Include="Main.c" />
     <ClCompile Include="Util.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DrinkControl.h" />
     <ClInclude Include="DumpParse.h" />
     <ClInclude Include="Main_Internal.h" />
     <ClInclude Include="Resource.h" />
