@@ -163,7 +163,6 @@ main_HandleConvert(
 	HANDLE		hOutputFile		= INVALID_HANDLE_VALUE;
 	DWORD		cbWritten		= 0;
 
-	assert(0 != nArguments);
 	assert(NULL != ppwszArguments);
 
 	switch (nArguments)
@@ -261,8 +260,8 @@ main_HandleBugshot(
 	SC_HANDLE	hServiceControlManager				= NULL;
 	SC_HANDLE	hDriverService						= NULL;
 
-	assert(0 != nArguments);
-	assert(NULL != ppwszArguments);
+	UNREFERENCED_PARAMETER(nArguments);
+	UNREFERENCED_PARAMETER(ppwszArguments);
 
 	hrResult = UTIL_ReadResource(GetModuleHandleW(NULL),
 								 MAKEINTRESOURCEW(IDR_DRIVER),
@@ -394,7 +393,8 @@ wmain(
 		goto lblCleanup;
 	}
 
-	hrResult = pfnHandler(nArguments, ppwszArguments);
+	hrResult = pfnHandler(nArguments - CMD_ARGS_COUNT,
+						  ppwszArguments + CMD_ARGS_COUNT);
 
 	// Keep last status
 
