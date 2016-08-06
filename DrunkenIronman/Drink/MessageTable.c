@@ -13,6 +13,8 @@
 
 #include <Common.h>
 
+#include "Util.h"
+
 #include "MessageTable.h"
 
 
@@ -230,7 +232,7 @@ messagetable_FreeRoutine(
 	ASSERT(NULL != ptTable);
 	ASSERT(NULL != pvBuffer);
 
-	ExFreePool(pvBuffer);
+	CLOSE(pvBuffer, ExFreePool);
 }
 
 /**
@@ -400,8 +402,8 @@ messagetable_InsertResourceEntryAnsi(
 )
 {
 	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
+	SIZE_T		cbStringMax	= 0;
 	ANSI_STRING	sString		= { 0 };
-	USHORT		cchString	= 0;
 
 	PAGED_CODE();
 
@@ -409,23 +411,22 @@ messagetable_InsertResourceEntryAnsi(
 	ASSERT(NULL != ptResourceEntry);
 	ASSERT(0 == ptResourceEntry->fFlags);
 
-	// Set the pointer to the buffer.
-	sString.Buffer = (PCHAR)&(ptResourceEntry->acText[0]);
-
-	// Set the string's maximum size (buffer size).
-	eStatus = RtlUShortSub(ptResourceEntry->cbLength,
-						   UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText),
-						   &(sString.MaximumLength));
+	// Calculate the string's maximum size (buffer size).
+	eStatus = RtlSIZETSub(ptResourceEntry->cbLength,
+						  UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText),
+						  &cbStringMax);
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
 	}
 
-	// Calculate the size of the null-terminated string.
-	// Safe because MaximumLength is a USHORT as well.
-	cchString = (USHORT)strnlen(sString.Buffer,
-								sString.MaximumLength / sizeof(sString.Buffer[0]));
-	sString.Length = cchString * sizeof(sString.Buffer[0]);
+	eStatus = UTIL_InitAnsiStringCb((PCHAR)&(ptResourceEntry->acText[0]),
+									cbStringMax,
+									&sString);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
 
 	eStatus = MESSAGETABLE_InsertAnsi(hMessageTable,
 									  nEntryId,
@@ -464,8 +465,8 @@ messagetable_InsertResourceEntryUnicode(
 )
 {
 	NTSTATUS		eStatus		= STATUS_UNSUCCESSFUL;
+	SIZE_T			cbStringMax	= 0;
 	UNICODE_STRING	usString	= { 0 };
-	USHORT			cchString	= 0;
 
 	PAGED_CODE();
 
@@ -473,23 +474,22 @@ messagetable_InsertResourceEntryUnicode(
 	ASSERT(NULL != ptResourceEntry);
 	ASSERT(1 == ptResourceEntry->fFlags);
 
-	// Set the pointer to the buffer.
-	usString.Buffer = (PWCHAR)&(ptResourceEntry->acText[0]);
-
-	// Set the string's maximum size (buffer size).
-	eStatus = RtlUShortSub(ptResourceEntry->cbLength,
-						   UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText),
-						   &(usString.MaximumLength));
+	// Calculate the string's maximum size (buffer size).
+	eStatus = RtlSIZETSub(ptResourceEntry->cbLength,
+						  UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText),
+						  &cbStringMax);
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
 	}
 
-	// Calculate the size of the null-terminated string.
-	// Safe because MaximumLength is a USHORT as well.
-	cchString = (USHORT)wcsnlen(usString.Buffer,
-								usString.MaximumLength / sizeof(usString.Buffer[0]));
-	usString.Length = cchString * sizeof(usString.Buffer[0]);
+	eStatus = UTIL_InitUnicodeStringCb((PWCHAR)&(ptResourceEntry->acText[0]),
+									   cbStringMax,
+									   &usString);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
 
 	eStatus = MESSAGETABLE_InsertUnicode(hMessageTable,
 										 nEntryId,
