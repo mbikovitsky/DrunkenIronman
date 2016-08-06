@@ -42,6 +42,7 @@ typedef struct _MESSAGE_RESOURCE_ENTRY
 	UCHAR	acText[ANYSIZE_ARRAY];
 } MESSAGE_RESOURCE_ENTRY, *PMESSAGE_RESOURCE_ENTRY;
 typedef CONST MESSAGE_RESOURCE_ENTRY *PCMESSAGE_RESOURCE_ENTRY;
+C_ASSERT(0 == UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText) % __alignof(WCHAR));
 
 /**
  * Contains information about message strings with identifiers
@@ -121,7 +122,7 @@ typedef CONST SERIALIZING_CALLBACK_CONTEXT *PCSERIALIZING_CALLBACK_CONTEXT;
  * @see messagetable_IsValidUnicodeString.
  */
 #define MESSAGE_TABLE_UNICODE_STRING_MAX_SIZE \
-	(MAXUSHORT - FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText) - sizeof(UNICODE_NULL))
+	(MAXUSHORT - UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText) - sizeof(UNICODE_NULL))
 C_ASSERT(MESSAGE_TABLE_UNICODE_STRING_MAX_SIZE > 0);
 
 /**
@@ -137,7 +138,7 @@ C_ASSERT(MESSAGE_TABLE_UNICODE_STRING_MAX_SIZE > 0);
  * @see MESSAGE_RESOURCE_ENTRY.
  */
 #define MESSAGE_TABLE_ANSI_STRING_MAX_SIZE \
-	(MAXUSHORT - FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText) - sizeof(ANSI_NULL))
+	(MAXUSHORT - UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText) - sizeof(ANSI_NULL))
 C_ASSERT(MESSAGE_TABLE_ANSI_STRING_MAX_SIZE > 0);
 
 
@@ -400,7 +401,7 @@ messagetable_InsertResourceEntryAnsi(
 {
 	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
 	ANSI_STRING	sString		= { 0 };
-	size_t		cbString	= 0;
+	USHORT		cchString	= 0;
 
 	PAGED_CODE();
 
@@ -413,7 +414,7 @@ messagetable_InsertResourceEntryAnsi(
 
 	// Set the string's maximum size (buffer size).
 	eStatus = RtlUShortSub(ptResourceEntry->cbLength,
-						   FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText),
+						   UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText),
 						   &(sString.MaximumLength));
 	if (!NT_SUCCESS(eStatus))
 	{
@@ -421,23 +422,10 @@ messagetable_InsertResourceEntryAnsi(
 	}
 
 	// Calculate the size of the null-terminated string.
-	eStatus = RtlStringCbLengthA(sString.Buffer,
-								 sString.MaximumLength,
-								 &cbString);
-	if (!NT_SUCCESS(eStatus))
-	{
-		// On failure, assume the string is simply
-		// not terminated.
-		ASSERT(STATUS_INVALID_PARAMETER == eStatus);
-		cbString = sString.MaximumLength;
-	}
-
-	// Convert the calculated size.
-	eStatus = RtlSizeTToUShort(cbString, &(sString.Length));
-	if (!NT_SUCCESS(eStatus))
-	{
-		goto lblCleanup;
-	}
+	// Safe because MaximumLength is a USHORT as well.
+	cchString = (USHORT)strnlen(sString.Buffer,
+								sString.MaximumLength / sizeof(sString.Buffer[0]));
+	sString.Length = cchString * sizeof(sString.Buffer[0]);
 
 	eStatus = MESSAGETABLE_InsertAnsi(hMessageTable,
 									  nEntryId,
@@ -477,7 +465,7 @@ messagetable_InsertResourceEntryUnicode(
 {
 	NTSTATUS		eStatus		= STATUS_UNSUCCESSFUL;
 	UNICODE_STRING	usString	= { 0 };
-	size_t			cbString	= 0;
+	USHORT			cchString	= 0;
 
 	PAGED_CODE();
 
@@ -490,7 +478,7 @@ messagetable_InsertResourceEntryUnicode(
 
 	// Set the string's maximum size (buffer size).
 	eStatus = RtlUShortSub(ptResourceEntry->cbLength,
-						   FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText),
+						   UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText),
 						   &(usString.MaximumLength));
 	if (!NT_SUCCESS(eStatus))
 	{
@@ -498,23 +486,10 @@ messagetable_InsertResourceEntryUnicode(
 	}
 
 	// Calculate the size of the null-terminated string.
-	eStatus = RtlUnalignedStringCbLengthW(usString.Buffer,
-										  usString.MaximumLength,
-										  &cbString);
-	if (!NT_SUCCESS(eStatus))
-	{
-		// On failure, assume the string is simply
-		// not terminated.
-		ASSERT(STATUS_INVALID_PARAMETER == eStatus);
-		cbString = usString.MaximumLength;
-	}
-
-	// Convert the calculated size.
-	eStatus = RtlSizeTToUShort(cbString, &(usString.Length));
-	if (!NT_SUCCESS(eStatus))
-	{
-		goto lblCleanup;
-	}
+	// Safe because MaximumLength is a USHORT as well.
+	cchString = (USHORT)wcsnlen(usString.Buffer,
+								usString.MaximumLength / sizeof(usString.Buffer[0]));
+	usString.Length = cchString * sizeof(usString.Buffer[0]);
 
 	eStatus = MESSAGETABLE_InsertUnicode(hMessageTable,
 										 nEntryId,
@@ -551,7 +526,7 @@ messagetable_SizeofSerializedEntry(
 
 	ASSERT(NULL != ptEntry);
 
-	cbTotal = FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText);
+	cbTotal = UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText);
 	if (ptEntry->bUnicode)
 	{
 		eStatus = RtlUShortAdd(cbTotal,
@@ -1161,7 +1136,7 @@ MESSAGETABLE_Serialize(
 	}
 
 	// Calculate the size of the header
-	eStatus = RtlSIZETAdd(FIELD_OFFSET(MESSAGE_RESOURCE_DATA, atBlocks),
+	eStatus = RtlSIZETAdd(UFIELD_OFFSET(MESSAGE_RESOURCE_DATA, atBlocks),
 						  tCountingContext.nBlocks * sizeof(ptMessageData->atBlocks[0]),
 						  &cbHeader);
 	ASSERT(NT_SUCCESS(eStatus));
