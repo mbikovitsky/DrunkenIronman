@@ -179,10 +179,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Driver.c" />
+    <ClCompile Include="ImageParse.c" />
     <ClCompile Include="MessageTable.c" />
     <ClCompile Include="VgaDump.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ImageParse.h" />
     <ClInclude Include="MessageTable.h" />
     <ClInclude Include="VgaDump.h" />
   </ItemGroup>
