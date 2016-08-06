@@ -302,7 +302,14 @@ UTIL_QueryModuleInformation(
 												ptModules);
 		if (NT_SUCCESS(eStatus))
 		{
-			break;
+			if (NULL != ptModules)
+			{
+				break;
+			}
+			else
+			{
+				eStatus = STATUS_BUFFER_TOO_SMALL;
+			}
 		}
 		if (STATUS_BUFFER_TOO_SMALL != eStatus)
 		{
