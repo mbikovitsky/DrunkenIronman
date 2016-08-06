@@ -71,6 +71,7 @@ typedef FN_MESSAGETABLE_ENUMERATION_CALLBACK *PFN_MESSAGETABLE_ENUMERATION_CALLB
  *
  * @returns NTSTATUS
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 MESSAGETABLE_Create(
 	_Out_	PHMESSAGETABLE	phMessageTable
@@ -86,6 +87,7 @@ MESSAGETABLE_Create(
  *
  * @returns NTSTATUS
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 MESSAGETABLE_CreateFromResource(
 	_In_reads_bytes_(cbMessageTableResource)	PVOID			pvMessageTableResource,
@@ -98,6 +100,7 @@ MESSAGETABLE_CreateFromResource(
  *
  * @param[in]	hMessageTable	Message table to destroy.
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 VOID
 MESSAGETABLE_Destroy(
 	_In_	HMESSAGETABLE	hMessageTable
@@ -115,6 +118,7 @@ MESSAGETABLE_Destroy(
  * @remark	If an entry with the same ID already exists,
  *			it is overwritten.
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 MESSAGETABLE_InsertAnsi(
 	_In_	HMESSAGETABLE	hMessageTable,
@@ -134,6 +138,7 @@ MESSAGETABLE_InsertAnsi(
  * @remark	If an entry with the same ID already exists,
  *			it is overwritten.
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 MESSAGETABLE_InsertUnicode(
 	_In_	HMESSAGETABLE		hMessageTable,
@@ -159,6 +164,7 @@ MESSAGETABLE_InsertUnicode(
  * @remark	Inserting an entry from within the callback
  *			may result in a deadlock.
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 MESSAGETABLE_EnumerateEntries(
 	_In_		HMESSAGETABLE							hMessageTable,
@@ -178,6 +184,7 @@ MESSAGETABLE_EnumerateEntries(
  * @remark	The returned buffer is allocated from the _paged_ pool.
  *			Free it using ExFreePool.
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 MESSAGETABLE_Serialize(
 	_In_													HMESSAGETABLE	hMessageTable,

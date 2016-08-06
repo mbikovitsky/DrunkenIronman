@@ -21,11 +21,13 @@
  *
  * @returns NTSTATUS
  */
+_IRQL_requires_max_(DISPATCH_LEVEL)
 NTSTATUS
 VGADUMP_Initialize(VOID);
 
 /**
  * Shuts down the module.
  */
+_IRQL_requires_max_(DISPATCH_LEVEL)
 VOID
 VGADUMP_Shutdown(VOID);

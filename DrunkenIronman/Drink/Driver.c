@@ -74,6 +74,7 @@ AuxKlibInitialize(VOID);
  *
  * @param[in]	ptDriverObject	Pointer to the driver object.
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 STATIC
 VOID
 driver_Unload(
@@ -106,6 +107,7 @@ driver_Unload(
  *
  * @see COMPLETE_IRP.
  */
+_IRQL_requires_max_(DISPATCH_LEVEL)
 STATIC
 VOID
 driver_CompleteRequest(
@@ -115,10 +117,8 @@ driver_CompleteRequest(
 	_In_	CCHAR		ePriorityBoost
 )
 {
-	if (NULL == ptIrp)
-	{
-		goto lblCleanup;
-	}
+	ASSERT(NULL != ptIrp);
+	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
 
 	ptIrp->IoStatus.Status = eStatus;
 	ptIrp->IoStatus.Information = pvInformation;
@@ -137,6 +137,7 @@ lblCleanup:
  *
  * @returns NTSTATUS
  */
+_IRQL_requires_max_(DISPATCH_LEVEL)
 STATIC
 NTSTATUS
 driver_DispatchCreateClose(
@@ -152,6 +153,7 @@ driver_DispatchCreateClose(
 
 	ASSERT(NULL != ptDeviceObject);
 	ASSERT(NULL != ptIrp);
+	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
 
 	eStatus = STATUS_SUCCESS;
 
@@ -168,6 +170,7 @@ driver_DispatchCreateClose(
  *
  * @returns NTSTATUS
  */
+_IRQL_requires_max_(DISPATCH_LEVEL)
 STATIC
 NTSTATUS
 driver_DispatchDeviceControl(
@@ -184,6 +187,7 @@ driver_DispatchDeviceControl(
 
 	ASSERT(NULL != ptDeviceObject);
 	ASSERT(NULL != ptIrp);
+	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
 
 	ptStackLocation = IoGetCurrentIrpStackLocation(ptIrp);
 	ASSERT(NULL != ptStackLocation);
@@ -210,6 +214,7 @@ driver_DispatchDeviceControl(
  *
  * @returns NTSTATUS
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 DriverEntry(
 	_In_	PDRIVER_OBJECT	ptDriverObject,

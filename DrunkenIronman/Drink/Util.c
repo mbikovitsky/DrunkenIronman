@@ -43,7 +43,7 @@
  * @remark Call AuxKlibInitialize before invoking this routine.
  * @remark Adapted from aux_klib.h.
  */
-_IRQL_requires_max_(PASSIVE_LEVEL)
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 NTAPI
 AuxKlibQueryModuleInformation(
@@ -55,6 +55,7 @@ AuxKlibQueryModuleInformation(
 
 /** Functions ***********************************************************/
 
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 UTIL_InitUnicodeStringCb(
 	_In_reads_bytes_(cbInputStringMax)	PWCHAR			pwcInputString,
@@ -65,7 +66,10 @@ UTIL_InitUnicodeStringCb(
 	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
 	size_t		cbString	= 0;
 
-	if (NULL == pusOutputString)
+	PAGED_CODE();
+
+	if ((NULL == pusOutputString) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -120,6 +124,7 @@ lblCleanup:
 	return eStatus;
 }
 
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 UTIL_InitUnicodeStringCch(
 	_In_reads_(cchInputStringMax)	PWCHAR			pwcInputString,
@@ -130,7 +135,10 @@ UTIL_InitUnicodeStringCch(
 	NTSTATUS	eStatus				= STATUS_UNSUCCESSFUL;
 	SIZE_T		cbInputStringMax	= 0;
 
-	if (NULL == pusOutputString)
+	PAGED_CODE();
+
+	if ((NULL == pusOutputString) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -163,6 +171,7 @@ lblCleanup:
 	return eStatus;
 }
 
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 UTIL_InitAnsiStringCb(
 	_In_reads_bytes_(cbInputStringMax)	PCHAR			pcInputString,
@@ -173,7 +182,10 @@ UTIL_InitAnsiStringCb(
 	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
 	size_t		cbString	= 0;
 
-	if (NULL == psOutputString)
+	PAGED_CODE();
+
+	if ((NULL == psOutputString) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -228,6 +240,7 @@ lblCleanup:
 	return eStatus;
 }
 
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 UTIL_InitAnsiStringCch(
 	_In_reads_(cchInputStringMax)	PCHAR			pcInputString,
@@ -238,7 +251,10 @@ UTIL_InitAnsiStringCch(
 	NTSTATUS	eStatus				= STATUS_UNSUCCESSFUL;
 	SIZE_T		cbInputStringMax	= 0;
 
-	if (NULL == psOutputString)
+	PAGED_CODE();
+
+	if ((NULL == psOutputString) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -271,6 +287,7 @@ lblCleanup:
 	return eStatus;
 }
 
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 UTIL_QueryModuleInformation(
 	_Outptr_result_buffer_(*pnModules)	PAUX_MODULE_EXTENDED_INFO *	pptModules,
@@ -285,10 +302,9 @@ UTIL_QueryModuleInformation(
 
 	PAGED_CODE();
 
-	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
-
 	if ((NULL == pptModules) ||
-		(NULL == pnModules))
+		(NULL == pnModules) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;

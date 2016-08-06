@@ -340,11 +340,18 @@ lblCleanup:
 	return;
 }
 
+_IRQL_requires_max_(DISPATCH_LEVEL)
 NTSTATUS
 VGADUMP_Initialize(VOID)
 {
 	NTSTATUS			eStatus				= STATUS_UNSUCCESSFUL;
 	PHYSICAL_ADDRESS	pvVgaPhysicalBase	= { 0 };
+
+	if (DISPATCH_LEVEL < KeGetCurrentIrql())
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
 
 	// Map the VGA video memory so that we'll be able
 	// to access it in protected mode.
@@ -380,9 +387,15 @@ lblCleanup:
 	return eStatus;
 }
 
+_IRQL_requires_max_(DISPATCH_LEVEL)
 VOID
 VGADUMP_Shutdown(VOID)
 {
+	if (DISPATCH_LEVEL < KeGetCurrentIrql())
+	{
+		goto lblCleanup;
+	}
+
 	if (g_bCallbackRegistered)
 	{
 		(VOID)KeDeregisterBugCheckReasonCallback(&g_tCallbackRecord);
@@ -394,4 +407,7 @@ VGADUMP_Shutdown(VOID)
 		MmUnmapIoSpace(g_pvVgaBase, sizeof(VGA_PLANE_DUMP));
 		g_pvVgaBase = NULL;
 	}
+
+lblCleanup:
+	return;
 }

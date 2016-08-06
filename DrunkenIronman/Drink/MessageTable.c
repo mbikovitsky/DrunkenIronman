@@ -155,6 +155,7 @@ C_ASSERT(MESSAGE_TABLE_ANSI_STRING_MAX_SIZE > 0);
  *
  * @returns RTL_GENERIC_COMPARE_RESULTS
  */
+_IRQL_requires_max_(APC_LEVEL)
 STATIC
 RTL_GENERIC_COMPARE_RESULTS
 messagetable_CompareRoutine(
@@ -197,6 +198,7 @@ messagetable_CompareRoutine(
  *
  * @returns PVOID
  */
+_IRQL_requires_max_(APC_LEVEL)
 STATIC
 PVOID
 messagetable_AllocateRoutine(
@@ -220,6 +222,7 @@ messagetable_AllocateRoutine(
  * @param[in]	ptTable		The tree structure.
  * @param[in]	pvBuffer	The buffer to free.
  */
+_IRQL_requires_max_(APC_LEVEL)
 STATIC
 VOID
 messagetable_FreeRoutine(
@@ -243,6 +246,7 @@ messagetable_FreeRoutine(
  * @remark	This does not actually free the entry
  *			itself, only the pointers within.
  */
+_IRQL_requires_max_(APC_LEVEL)
 STATIC
 VOID
 messagetable_ClearEntry(
@@ -393,6 +397,7 @@ lblCleanup:
  *			the resource entry is indeed an ANSI
  *			resource entry.
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 STATIC
 NTSTATUS
 messagetable_InsertResourceEntryAnsi(
@@ -410,6 +415,7 @@ messagetable_InsertResourceEntryAnsi(
 	ASSERT(NULL != hMessageTable);
 	ASSERT(NULL != ptResourceEntry);
 	ASSERT(0 == ptResourceEntry->fFlags);
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	// Calculate the string's maximum size (buffer size).
 	eStatus = RtlSIZETSub(ptResourceEntry->cbLength,
@@ -456,6 +462,7 @@ lblCleanup:
  *			the resource entry is indeed a Unicode
  *			resource entry.
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 STATIC
 NTSTATUS
 messagetable_InsertResourceEntryUnicode(
@@ -473,6 +480,7 @@ messagetable_InsertResourceEntryUnicode(
 	ASSERT(NULL != hMessageTable);
 	ASSERT(NULL != ptResourceEntry);
 	ASSERT(1 == ptResourceEntry->fFlags);
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	// Calculate the string's maximum size (buffer size).
 	eStatus = RtlSIZETSub(ptResourceEntry->cbLength,
@@ -513,6 +521,7 @@ lblCleanup:
  *
  * @returns USHORT.
  */
+_IRQL_requires_max_(APC_LEVEL)
 STATIC
 USHORT
 messagetable_SizeofSerializedEntry(
@@ -568,6 +577,7 @@ messagetable_SizeofSerializedEntry(
  *
  * @see COUNTING_CALLBACK_CONTEXT.
  */
+_IRQL_requires_max_(APC_LEVEL)
 STATIC
 VOID
 messagetable_CountingCallback(
@@ -617,6 +627,7 @@ messagetable_CountingCallback(
  *
  * @see SERIALIZING_CALLBACK_CONTEXT.
  */
+_IRQL_requires_max_(APC_LEVEL)
 STATIC
 VOID
 messagetable_SerializingCallback(
@@ -684,6 +695,7 @@ messagetable_SerializingCallback(
 	ptContext->pcCurrentStringPosition += ptCurrentEntry->cbLength;
 }
 
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 MESSAGETABLE_Create(
 	_Out_	PHMESSAGETABLE	phMessageTable
@@ -694,7 +706,8 @@ MESSAGETABLE_Create(
 
 	PAGED_CODE();
 
-	if (NULL == phMessageTable)
+	if ((NULL == phMessageTable) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -737,6 +750,7 @@ lblCleanup:
 	return eStatus;
 }
 
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 MESSAGETABLE_CreateFromResource(
 	_In_reads_bytes_(cbMessageTableResource)	PVOID			pvMessageTableResource,
@@ -757,7 +771,8 @@ MESSAGETABLE_CreateFromResource(
 
 	if ((NULL == pvMessageTableResource) ||
 		(0 == cbMessageTableResource) ||
-		(NULL == phMessageTable))
+		(NULL == phMessageTable) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -821,6 +836,7 @@ lblCleanup:
 	return eStatus;
 }
 
+_IRQL_requires_(PASSIVE_LEVEL)
 VOID
 MESSAGETABLE_Destroy(
 	_In_	HMESSAGETABLE	hMessageTable
@@ -831,7 +847,8 @@ MESSAGETABLE_Destroy(
 
 	PAGED_CODE();
 
-	if (NULL == hMessageTable)
+	if ((NULL == hMessageTable) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
 	{
 		goto lblCleanup;
 	}
@@ -867,6 +884,7 @@ lblCleanup:
 	return;
 }
 
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 MESSAGETABLE_InsertAnsi(
 	_In_	HMESSAGETABLE	hMessageTable,
@@ -885,7 +903,8 @@ MESSAGETABLE_InsertAnsi(
 	PAGED_CODE();
 
 	if ((NULL == hMessageTable) ||
-		(!messagetable_IsValidAnsiString(psString)))
+		(!messagetable_IsValidAnsiString(psString)) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -952,6 +971,7 @@ lblCleanup:
 	return eStatus;
 }
 
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 MESSAGETABLE_InsertUnicode(
 	_In_	HMESSAGETABLE		hMessageTable,
@@ -970,7 +990,8 @@ MESSAGETABLE_InsertUnicode(
 	PAGED_CODE();
 
 	if ((NULL == hMessageTable) ||
-		(!messagetable_IsValidUnicodeString(pusString)))
+		(!messagetable_IsValidUnicodeString(pusString)) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -1037,6 +1058,7 @@ lblCleanup:
 	return eStatus;
 }
 
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 MESSAGETABLE_EnumerateEntries(
 	_In_		HMESSAGETABLE							hMessageTable,
@@ -1056,7 +1078,8 @@ MESSAGETABLE_EnumerateEntries(
 	PAGED_CODE();
 
 	if ((NULL == hMessageTable) ||
-		(NULL == pfnCallback))
+		(NULL == pfnCallback) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -1098,6 +1121,7 @@ lblCleanup:
 	return eStatus;
 }
 
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 MESSAGETABLE_Serialize(
 	_In_													HMESSAGETABLE	hMessageTable,
@@ -1118,7 +1142,8 @@ MESSAGETABLE_Serialize(
 
 	if ((NULL == hMessageTable) ||
 		(NULL == ppvMessageTableResource) ||
-		(NULL == pcbMessageTableResource))
+		(NULL == pcbMessageTableResource) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;

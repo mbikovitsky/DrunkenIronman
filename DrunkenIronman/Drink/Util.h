@@ -60,6 +60,7 @@ typedef struct _AUX_MODULE_EXTENDED_INFO
  *
  * @remark The input buffer may not be null-terminated.
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 UTIL_InitUnicodeStringCb(
 	_In_reads_bytes_(cbInputStringMax)	PWCHAR			pwcInputString,
@@ -78,6 +79,7 @@ UTIL_InitUnicodeStringCb(
  *
  * @remark The input buffer may not be null-terminated.
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 UTIL_InitUnicodeStringCch(
 	_In_reads_(cchInputStringMax)	PWCHAR			pwcInputString,
@@ -96,6 +98,7 @@ UTIL_InitUnicodeStringCch(
  *
  * @remark The input buffer may not be null-terminated.
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 UTIL_InitAnsiStringCb(
 	_In_reads_bytes_(cbInputStringMax)	PCHAR			pcInputString,
@@ -114,6 +117,7 @@ UTIL_InitAnsiStringCb(
  *
  * @remark The input buffer may not be null-terminated.
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 UTIL_InitAnsiStringCch(
 	_In_reads_(cchInputStringMax)	PCHAR			pcInputString,
@@ -133,6 +137,7 @@ UTIL_InitAnsiStringCch(
  * @remark	The returned buffer is allocated from the _paged_ pool.
  *			Free it with ExFreePool.
  */
+_IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 UTIL_QueryModuleInformation(
 	_Outptr_result_buffer_(*pnModules)	PAUX_MODULE_EXTENDED_INFO *	pptModules,
