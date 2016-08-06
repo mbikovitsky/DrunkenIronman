@@ -28,6 +28,7 @@ typedef struct _MESSAGE_TABLE
 	ERESOURCE		tLock;
 	BOOLEAN			bLockInitialized;
 
+	_Guarded_by_(tLock)
 	RTL_AVL_TABLE	tTable;
 	BOOLEAN			bTableInitialized;
 } MESSAGE_TABLE, *PMESSAGE_TABLE;
@@ -695,6 +696,92 @@ messagetable_SerializingCallback(
 	ptContext->pcCurrentStringPosition += ptCurrentEntry->cbLength;
 }
 
+/**
+ * Acquires the message table lock.
+ *
+ * @param[in]	ptMessageTable	Message table to lock.
+ * @param[in]	bExclusive		Indicates whether the lock
+ *								is to be acquired exclusively.
+ *
+ * @returns NTSTATUS
+ */
+_IRQL_requires_max_(APC_LEVEL)
+_When_(bExclusive, _Acquires_exclusive_lock_(ptMessageTable->tLock))
+_When_(!bExclusive, _Acquires_shared_lock_(ptMessageTable->tLock))
+_Acquires_lock_(_Global_critical_region_)
+STATIC
+NTSTATUS
+messagetable_AcquireLock(
+	_In_	PMESSAGE_TABLE	ptMessageTable,
+	_In_	BOOLEAN			bExclusive
+)
+{
+	NTSTATUS	eStatus					= STATUS_UNSUCCESSFUL;
+	BOOLEAN		bResult					= FALSE;
+	BOOLEAN		bLeaveCriticalRegion	= FALSE;
+	BOOLEAN		bReleaseLock			= FALSE;
+
+	PAGED_CODE();
+
+	ASSERT(NULL != ptMessageTable);
+
+	KeEnterCriticalRegion();
+	bLeaveCriticalRegion = TRUE;
+
+	bResult =
+		(bExclusive)
+		? (ExAcquireResourceExclusiveLite(&(ptMessageTable->tLock), TRUE))
+		: (ExAcquireResourceSharedLite(&(ptMessageTable->tLock), TRUE));
+	if (!bResult)
+	{
+		eStatus = STATUS_LOCK_NOT_GRANTED;
+		goto lblCleanup;
+	}
+	bReleaseLock = TRUE;
+
+	// All done!
+	bReleaseLock = FALSE;
+	bLeaveCriticalRegion = FALSE;
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	if (bReleaseLock)
+	{
+		ExReleaseResourceLite(&(ptMessageTable->tLock));
+		bReleaseLock = FALSE;
+	}
+	if (bLeaveCriticalRegion)
+	{
+		KeLeaveCriticalRegion();
+		bLeaveCriticalRegion = FALSE;
+	}
+
+	return eStatus;
+}
+
+/**
+ * Releases the message table lock.
+ *
+ * @param[in]	ptMessageTable	Message table to unlock.
+ */
+_IRQL_requires_max_(APC_LEVEL)
+_Releases_lock_(ptMessageTable->tLock)
+_Releases_lock_(_Global_critical_region_)
+STATIC
+VOID
+messagetable_ReleaseLock(
+	_In_	PMESSAGE_TABLE	ptMessageTable
+)
+{
+	PAGED_CODE();
+
+	ASSERT(NULL != ptMessageTable);
+
+	ExReleaseResourceLite(&(ptMessageTable->tLock));
+	KeLeaveCriticalRegion();
+}
+
 _IRQL_requires_(PASSIVE_LEVEL)
 NTSTATUS
 MESSAGETABLE_Create(
@@ -910,7 +997,11 @@ MESSAGETABLE_InsertAnsi(
 		goto lblCleanup;
 	}
 
-	(VOID)ExEnterCriticalRegionAndAcquireResourceExclusive(&(ptMessageTable->tLock));
+	eStatus = messagetable_AcquireLock(ptMessageTable, TRUE);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
 	bLockAcquired = TRUE;
 
 	// Allocate memory for a duplicate string.
@@ -964,7 +1055,7 @@ lblCleanup:
 	CLOSE(pcDuplicateString, ExFreePool);
 	if (bLockAcquired)
 	{
-		ExReleaseResourceAndLeaveCriticalRegion(&(ptMessageTable->tLock));
+		messagetable_ReleaseLock(ptMessageTable);
 		bLockAcquired = FALSE;
 	}
 
@@ -997,8 +1088,11 @@ MESSAGETABLE_InsertUnicode(
 		goto lblCleanup;
 	}
 
-	(VOID)ExEnterCriticalRegionAndAcquireResourceExclusive(&(ptMessageTable->tLock));
-	bLockAcquired = TRUE;
+	eStatus = messagetable_AcquireLock(ptMessageTable, TRUE);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
 
 	// Allocate memory for a duplicate string.
 	pwcDuplicateString = ExAllocatePoolWithTag(PagedPool,
@@ -1051,7 +1145,7 @@ lblCleanup:
 	CLOSE(pwcDuplicateString, ExFreePool);
 	if (bLockAcquired)
 	{
-		ExReleaseResourceAndLeaveCriticalRegion(&(ptMessageTable->tLock));
+		messagetable_ReleaseLock(ptMessageTable);
 		bLockAcquired = FALSE;
 	}
 
@@ -1085,7 +1179,11 @@ MESSAGETABLE_EnumerateEntries(
 		goto lblCleanup;
 	}
 
-	(VOID)ExEnterCriticalRegionAndAcquireResourceShared(&(ptMessageTable->tLock));
+	eStatus = messagetable_AcquireLock(ptMessageTable, FALSE);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
 	bLockAcquired = TRUE;
 
 	for (pvData = RtlEnumerateGenericTableWithoutSplayingAvl(&(ptMessageTable->tTable),
@@ -1114,7 +1212,7 @@ MESSAGETABLE_EnumerateEntries(
 lblCleanup:
 	if (bLockAcquired)
 	{
-		ExReleaseResourceAndLeaveCriticalRegion(&(ptMessageTable->tLock));
+		messagetable_ReleaseLock(ptMessageTable);
 		bLockAcquired = FALSE;
 	}
 
@@ -1149,7 +1247,11 @@ MESSAGETABLE_Serialize(
 		goto lblCleanup;
 	}
 
-	(VOID)ExEnterCriticalRegionAndAcquireResourceShared(&(ptMessageTable->tLock));
+	eStatus = messagetable_AcquireLock(ptMessageTable, FALSE);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
 	bLockAcquired = TRUE;
 
 	eStatus = MESSAGETABLE_EnumerateEntries(hMessageTable,
@@ -1208,7 +1310,7 @@ lblCleanup:
 	CLOSE(ptMessageData, ExFreePool);
 	if (bLockAcquired)
 	{
-		ExReleaseResourceAndLeaveCriticalRegion(&(ptMessageTable->tLock));
+		messagetable_ReleaseLock(ptMessageTable);
 		bLockAcquired = FALSE;
 	}
 
