@@ -25,7 +25,7 @@
  * @param[in]	ptRoot					The current resource tree root.
  * @param[in]	ptResourcePath			Path for the resource to find.
  * @param[in]	nPathLength				Length of the path, in elements.
- * @param[out]	ppvResourceData			Will receive a pointer to the resource data.
+ * @param[out]	pcbResourceDataRva		Will receive the resource data's RVA.
  * @param[out]	pcbResourceData			Will receive the resource data's size, in bytes.
  *
  * @returns NTSTATUS
@@ -33,12 +33,12 @@
 STATIC
 NTSTATUS
 imageparse_FindResourceRecursive(
-	_In_											PVOID						pvResourceDirectoryBase,
-	_In_											PIMAGE_RESOURCE_DIRECTORY	ptRoot,
-	_In_reads_(nPathLength)							PCRESOURCE_PATH_COMPONENT	ptResourcePath,
-	_In_											ULONG						nPathLength,
-	_Outptr_result_bytebuffer_(*pcbResourceData)	PVOID *						ppvResourceData,
-	_Out_											PULONG						pcbResourceData
+	_In_					PVOID						pvResourceDirectoryBase,
+	_In_					PIMAGE_RESOURCE_DIRECTORY	ptRoot,
+	_In_reads_(nPathLength)	PCRESOURCE_PATH_COMPONENT	ptResourcePath,
+	_In_					ULONG						nPathLength,
+	_Out_					PULONG						pcbResourceDataRva,
+	_Out_					PULONG						pcbResourceData
 )
 {
 	NTSTATUS						eStatus			= STATUS_UNSUCCESSFUL;
@@ -55,7 +55,7 @@ imageparse_FindResourceRecursive(
 	ASSERT(NULL != ptRoot);
 	ASSERT(NULL != ptResourcePath);
 	ASSERT(0 != nPathLength);
-	ASSERT(NULL != ppvResourceData);
+	ASSERT(NULL != pcbResourceDataRva);
 	ASSERT(NULL != pcbResourceData);
 
 	ptNamedEntries = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)(ptRoot + 1);
@@ -128,7 +128,7 @@ imageparse_FindResourceRecursive(
 												   ptNextLevel,
 												   ptResourcePath + 1,
 												   nPathLength - 1,
-												   ppvResourceData,
+												   pcbResourceDataRva,
 												   pcbResourceData);
 	}
 	else
@@ -147,8 +147,7 @@ imageparse_FindResourceRecursive(
 		ASSERT(0 != ptFoundEntry->OffsetToData);
 
 		// Return results.
-		*ppvResourceData = RtlOffsetToPointer(pvResourceDirectoryBase,
-											  ptDataEntry->OffsetToData);
+		*pcbResourceDataRva = ptDataEntry->OffsetToData;
 		*pcbResourceData = ptDataEntry->Size;
 		eStatus = STATUS_SUCCESS;
 	}
@@ -281,9 +280,10 @@ IMAGEPARSE_FindResource(
 	_Out_											PULONG						pcbResourceData
 )
 {
-	NTSTATUS					eStatus				= STATUS_UNSUCCESSFUL;
-	PVOID						pvResourceDirectory	= NULL;
-	ULONG						cbResourceDirectory	= 0;
+	NTSTATUS	eStatus				= STATUS_UNSUCCESSFUL;
+	PVOID		pvResourceDirectory	= NULL;
+	ULONG		cbResourceDirectory	= 0;
+	ULONG		cbResourceDataRva	= 0;
 
 	if ((NULL == pvImageBase) ||
 		(NULL == ptResourcePath) ||
@@ -309,8 +309,9 @@ IMAGEPARSE_FindResource(
 											   (PIMAGE_RESOURCE_DIRECTORY)pvResourceDirectory,
 											   ptResourcePath,
 											   nPathLength,
-											   ppvResourceData,
+											   &cbResourceDataRva,
 											   pcbResourceData);
+	*ppvResourceData = RtlOffsetToPointer(pvImageBase, cbResourceDataRva);
 
 	// Keep last status
 
