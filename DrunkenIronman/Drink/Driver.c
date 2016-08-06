@@ -53,6 +53,20 @@ STATIC CONST UNICODE_STRING g_usControlDeviceSymlink =
 	RTL_CONSTANT_STRING(L"\\DosDevices\\Global\\" DRINK_DEVICE_NAME);
 
 
+/** Forward Declarations ************************************************/
+
+/**
+ * Initializes the Auxiliary Kernel-Mode Library.
+ *
+ * @returns NTSTATUS
+ *
+ * @remark Adapted from aux_klib.h.
+ */
+NTSTATUS
+NTAPI
+AuxKlibInitialize(VOID);
+
+
 /** Functions ***********************************************************/
 
 /**
@@ -218,6 +232,12 @@ DriverEntry(
 	//
 
 	ExInitializeDriverRuntime(DrvRtPoolNxOptIn);
+
+	eStatus = AuxKlibInitialize();
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
 
 	//
 	// Initialize the driver object.
