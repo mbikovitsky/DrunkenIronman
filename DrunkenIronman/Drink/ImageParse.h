@@ -31,3 +31,22 @@ IMAGEPARSE_GetNtHeaders(
 	_Outptr_		PIMAGE_NT_HEADERS *	pptNtHeaders,
 	_Outptr_opt_	PIMAGE_DOS_HEADER *	pptDosHeader
 );
+
+/**
+ * Obtains a pointer to a data directory
+ * within a mapped image.
+ *
+ * @param[in]	pvImageBase			Base of the mapped image.
+ * @param[in]	nDirectoryEntry		Index of the directory entry to retrieve.
+ * @param[out]	ppvDirectoryData	Will receive a pointer to the directory.
+ * @param[out]	pcbDirectoryData	Will receive the directory's size.
+ *
+ * @returns NTSTATUS
+ */
+NTSTATUS
+IMAGEPARSE_DirectoryEntryToData(
+	_In_		PVOID	pvImageBase,
+	_In_		USHORT	nDirectoryEntry,
+	_Outptr_	PVOID *	ppvDirectoryData,
+	_Out_		PULONG	pcbDirectoryData
+);
