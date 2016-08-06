@@ -11,6 +11,42 @@
 #include <ntifs.h>
 
 
+/** Constants ***********************************************************/
+
+/**
+ * The maximum length of a loaded module's filename.
+ *
+ * @remark Adapted from aux_klib.h.
+ */
+#define AUX_KLIB_MODULE_PATH_LEN (256)
+
+
+/** Typedefs ************************************************************/
+
+/**
+ * Contains basic information about a loaded module.
+ *
+ * @remark Adapted from aux_klib.h.
+ */
+typedef struct _AUX_MODULE_BASIC_INFO
+{
+	PVOID	pvImageBase;
+} AUX_MODULE_BASIC_INFO, *PAUX_MODULE_BASIC_INFO;
+
+/**
+ * Contains extended information about a loaded module.
+ *
+ * @remark Adapted from aux_klib.h.
+ */
+typedef struct _AUX_MODULE_EXTENDED_INFO
+{
+	AUX_MODULE_BASIC_INFO	tBasicInfo;
+	ULONG					cbImage;
+	USHORT					cbFileNameOffset;
+	UCHAR					acFullPathName[AUX_KLIB_MODULE_PATH_LEN];
+} AUX_MODULE_EXTENDED_INFO, *PAUX_MODULE_EXTENDED_INFO;
+
+
 /** Functions ***********************************************************/
 
 /**
@@ -83,4 +119,22 @@ UTIL_InitAnsiStringCch(
 	_In_reads_(cchInputStringMax)	PCHAR			pcInputString,
 	_In_							SIZE_T			cchInputStringMax,
 	_Out_							PANSI_STRING	psOutputString
+);
+
+/**
+ * Retrieves the list of loaded kernel modules.
+ *
+ * @param[out]	pptModules	Will receive the list of modules.
+ * @param[out]	pnModules	Will receive the length of the list, in elements.
+ *
+ * @returns NTSTATUS
+ *
+ * @remark	Call AuxKlibInitialize before invoking this routine.
+ * @remark	The returned buffer is allocated from the _paged_ pool.
+ *			Free it with ExFreePool.
+ */
+NTSTATUS
+UTIL_QueryModuleInformation(
+	_Outptr_result_buffer_(*pnModules)	PAUX_MODULE_EXTENDED_INFO *	pptModules,
+	_Out_								PULONG						pnModules
 );

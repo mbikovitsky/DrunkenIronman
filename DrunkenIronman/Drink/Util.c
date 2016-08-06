@@ -11,7 +11,46 @@
 #include <ntintsafe.h>
 #include <ntstrsafe.h>
 
+#include <Common.h>
+
 #include "Util.h"
+
+
+/** Constants ***********************************************************/
+
+/**
+ * Pool tag for allocations made by this module.
+ */
+#define UTIL_POOL_TAG (RtlUlongByteSwap('Util'))
+
+
+/** Forward Declarations ************************************************/
+
+/**
+ * Retrieves the list of loaded kernel modules.
+ *
+ * @param[in,out]	pcbBuffer	On input, contains the size of
+ *								the buffer at pvQueryInfo.
+ *								On output, contains the required
+ *								buffer size.
+ * @param[in]		cbElement	Size of the element to retrieve.
+ *								Can be either sizeof(AUX_MODULE_BASIC_INFO)
+ *								or sizeof(AUX_MODULE_EXTENDED_INFO).
+ * @param[out]		pcbBuffer	Buffer to receive the list.
+ *
+ * @returns NTSTATUS
+ *
+ * @remark Call AuxKlibInitialize before invoking this routine.
+ * @remark Adapted from aux_klib.h.
+ */
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+NTAPI
+AuxKlibQueryModuleInformation(
+	_Inout_								PULONG	pcbBuffer,
+	_In_								ULONG	cbElement,
+	_Out_writes_bytes_opt_(*pcbBuffer)	PVOID	pvQueryInfo
+);
 
 
 /** Functions ***********************************************************/
@@ -229,5 +268,85 @@ UTIL_InitAnsiStringCch(
 	// Keep last status
 
 lblCleanup:
+	return eStatus;
+}
+
+NTSTATUS
+UTIL_QueryModuleInformation(
+	_Outptr_result_buffer_(*pnModules)	PAUX_MODULE_EXTENDED_INFO *	pptModules,
+	_Out_								PULONG						pnModules
+)
+{
+	NTSTATUS					eStatus			= STATUS_UNSUCCESSFUL;
+	PAUX_MODULE_EXTENDED_INFO	ptModules		= NULL;
+	ULONG						cbModules		= 0;
+	ULONG						nModules		= 0;
+	PAUX_MODULE_EXTENDED_INFO	ptCurrentModule	= NULL;
+
+	PAGED_CODE();
+
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
+
+	if ((NULL == pptModules) ||
+		(NULL == pnModules))
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	for (;;)
+	{
+		// Try to obtain the module list.
+		eStatus = AuxKlibQueryModuleInformation(&cbModules,
+												sizeof(ptModules[0]),
+												ptModules);
+		if (NT_SUCCESS(eStatus))
+		{
+			break;
+		}
+		if (STATUS_BUFFER_TOO_SMALL != eStatus)
+		{
+			goto lblCleanup;
+		}
+
+		// Free the previous buffer.
+		CLOSE(ptModules, ExFreePool);
+
+		// Allocate a new one.
+		ptModules =
+			(PAUX_MODULE_EXTENDED_INFO)ExAllocatePoolWithTag(PagedPool,
+															 cbModules,
+															 UTIL_POOL_TAG);
+		if (NULL == ptModules)
+		{
+			eStatus = STATUS_INSUFFICIENT_RESOURCES;
+			goto lblCleanup;
+		}
+		RtlSecureZeroMemory(ptModules, cbModules);
+	}
+
+	nModules = 0;
+	for (ptCurrentModule = ptModules;
+		 ptCurrentModule < (PAUX_MODULE_EXTENDED_INFO)RtlOffsetToPointer(ptModules, cbModules);
+		 ++ptCurrentModule)
+	{
+		if (NULL == ptCurrentModule->tBasicInfo.pvImageBase)
+		{
+			break;
+		}
+
+		++nModules;
+	}
+
+	// Transfer ownership:
+	*pptModules = ptModules;
+	ptModules = NULL;
+	*pnModules = nModules;
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	CLOSE(ptModules, ExFreePool);
+
 	return eStatus;
 }
