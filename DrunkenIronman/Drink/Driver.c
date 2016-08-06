@@ -62,6 +62,8 @@ DriverEntry(
 	ASSERT(NULL != ptDriverObject);
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
+	ExInitializeDriverRuntime(DrvRtPoolNxOptIn);
+
 	ptDriverObject->DriverUnload = &driver_Unload;
 
 	eStatus = VGADUMP_Initialize();
