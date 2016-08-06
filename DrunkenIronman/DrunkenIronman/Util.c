@@ -672,10 +672,10 @@ UTIL_WriteToTemporaryFile(
 	}
 
 	//
-	// Returns the file's path to the caller.
+	// Return the file's path to the caller.
 	//
 
-	cchTempPath = wcslen(wszTempPath);
+	cchTempPath = wcslen(wszTempPath) + 1;
 	pwszTempPath = HEAPALLOC(cchTempPath * sizeof(pwszTempPath[0]));
 	if (NULL == pwszTempPath)
 	{
