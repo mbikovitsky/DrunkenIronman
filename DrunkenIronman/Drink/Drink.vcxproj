@@ -182,6 +182,7 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Carpenter.c" />
     <ClCompile Include="Driver.c" />
     <ClCompile Include="ImageParse.c" />
     <ClCompile Include="MessageTable.c" />
@@ -189,6 +190,7 @@
     <ClCompile Include="VgaDump.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Carpenter.h" />
     <ClInclude Include="ImageParse.h" />
     <ClInclude Include="MessageTable.h" />
     <ClInclude Include="Util.h" />
