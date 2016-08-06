@@ -156,6 +156,8 @@ MESSAGETABLE_InsertUnicode(
  *			for indicating an aborted enumeration.
  *			It is up to the caller to determine
  *			whether the callback aborted the enumeration.
+ * @remark	Inserting an entry from within the callback
+ *			may result in a deadlock.
  */
 NTSTATUS
 MESSAGETABLE_EnumerateEntries(

@@ -23,7 +23,11 @@
  */
 typedef struct _MESSAGE_TABLE
 {
+	ERESOURCE		tLock;
+	BOOLEAN			bLockInitialized;
+
 	RTL_AVL_TABLE	tTable;
+	BOOLEAN			bTableInitialized;
 } MESSAGE_TABLE, *PMESSAGE_TABLE;
 typedef CONST MESSAGE_TABLE *PCMESSAGE_TABLE;
 
@@ -721,7 +725,7 @@ MESSAGETABLE_Create(
 		goto lblCleanup;
 	}
 
-	ptMessageTable = ExAllocatePoolWithTag(PagedPool,
+	ptMessageTable = ExAllocatePoolWithTag(NonPagedPool,
 										   sizeof(*ptMessageTable),
 										   MESSAGE_TABLE_POOL_TAG);
 	if (NULL == ptMessageTable)
@@ -729,12 +733,21 @@ MESSAGETABLE_Create(
 		eStatus = STATUS_INSUFFICIENT_RESOURCES;
 		goto lblCleanup;
 	}
+	RtlSecureZeroMemory(ptMessageTable, sizeof(*ptMessageTable));
 
 	RtlInitializeGenericTableAvl(&(ptMessageTable->tTable),
 								 &messagetable_CompareRoutine,
 								 &messagetable_AllocateRoutine,
 								 &messagetable_FreeRoutine,
 								 NULL);
+	ptMessageTable->bTableInitialized = TRUE;
+
+	eStatus = ExInitializeResourceLite(&(ptMessageTable->tLock));
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+	ptMessageTable->bLockInitialized = TRUE;
 
 	// Transfer ownership:
 	*phMessageTable = (HMESSAGETABLE)ptMessageTable;
@@ -743,7 +756,8 @@ MESSAGETABLE_Create(
 	eStatus = STATUS_SUCCESS;
 
 lblCleanup:
-	CLOSE(ptMessageTable, ExFreePool);
+#pragma warning(suppress: 4133)	// warning C4133: 'function': incompatible types - from 'PMESSAGE_TABLE' to 'HMESSAGETABLE'
+	CLOSE(ptMessageTable, MESSAGETABLE_Destroy);
 
 	return eStatus;
 }
@@ -847,19 +861,30 @@ MESSAGETABLE_Destroy(
 		goto lblCleanup;
 	}
 
-	for (pvData = RtlEnumerateGenericTableAvl(&(ptMessageTable->tTable), TRUE);
-		 NULL != pvData;
-		 pvData = RtlEnumerateGenericTableAvl(&(ptMessageTable->tTable), FALSE))
+	if (ptMessageTable->bLockInitialized)
 	{
-		// Clear the current entry ...
-		messagetable_ClearEntry((PMESSAGE_TABLE_ENTRY)pvData);
-
-		// ... and delete it from the tree.
-		(VOID)RtlDeleteElementGenericTableAvl(&(ptMessageTable->tTable),
-											  pvData);
+		(VOID)ExDeleteResourceLite(&(ptMessageTable->tLock));
+		ptMessageTable->bLockInitialized = FALSE;
 	}
 
-	ASSERT(RtlIsGenericTableEmptyAvl(&(ptMessageTable->tTable)));
+	if (ptMessageTable->bTableInitialized)
+	{
+		for (pvData = RtlEnumerateGenericTableAvl(&(ptMessageTable->tTable), TRUE);
+			 NULL != pvData;
+			 pvData = RtlEnumerateGenericTableAvl(&(ptMessageTable->tTable), FALSE))
+		{
+			// Clear the current entry ...
+			messagetable_ClearEntry((PMESSAGE_TABLE_ENTRY)pvData);
+
+			// ... and delete it from the tree.
+			(VOID)RtlDeleteElementGenericTableAvl(&(ptMessageTable->tTable),
+												  pvData);
+		}
+
+		ASSERT(RtlIsGenericTableEmptyAvl(&(ptMessageTable->tTable)));
+
+		ptMessageTable->bTableInitialized = FALSE;
+	}
 
 	CLOSE(ptMessageTable, ExFreePool);
 
@@ -876,6 +901,7 @@ MESSAGETABLE_InsertAnsi(
 {
 	NTSTATUS				eStatus				= STATUS_UNSUCCESSFUL;
 	PMESSAGE_TABLE			ptMessageTable		= (PMESSAGE_TABLE)hMessageTable;
+	BOOLEAN					bLockAcquired		= FALSE;
 	MESSAGE_TABLE_ENTRY		tEntry				= { 0 };
 	PCHAR					pcDuplicateString	= NULL;
 	BOOLEAN					bNewElement			= FALSE;
@@ -889,6 +915,9 @@ MESSAGETABLE_InsertAnsi(
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
 	}
+
+	(VOID)ExEnterCriticalRegionAndAcquireResourceExclusive(&(ptMessageTable->tLock));
+	bLockAcquired = TRUE;
 
 	// Allocate memory for a duplicate string.
 	pcDuplicateString = ExAllocatePoolWithTag(PagedPool,
@@ -939,6 +968,11 @@ MESSAGETABLE_InsertAnsi(
 
 lblCleanup:
 	CLOSE(pcDuplicateString, ExFreePool);
+	if (bLockAcquired)
+	{
+		ExReleaseResourceAndLeaveCriticalRegion(&(ptMessageTable->tLock));
+		bLockAcquired = FALSE;
+	}
 
 	return eStatus;
 }
@@ -952,6 +986,7 @@ MESSAGETABLE_InsertUnicode(
 {
 	NTSTATUS				eStatus				= STATUS_UNSUCCESSFUL;
 	PMESSAGE_TABLE			ptMessageTable		= (PMESSAGE_TABLE)hMessageTable;
+	BOOLEAN					bLockAcquired		= FALSE;
 	MESSAGE_TABLE_ENTRY		tEntry				= { 0 };
 	PWCHAR					pwcDuplicateString	= NULL;
 	BOOLEAN					bNewElement			= FALSE;
@@ -965,6 +1000,9 @@ MESSAGETABLE_InsertUnicode(
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
 	}
+
+	(VOID)ExEnterCriticalRegionAndAcquireResourceExclusive(&(ptMessageTable->tLock));
+	bLockAcquired = TRUE;
 
 	// Allocate memory for a duplicate string.
 	pwcDuplicateString = ExAllocatePoolWithTag(PagedPool,
@@ -1015,6 +1053,11 @@ MESSAGETABLE_InsertUnicode(
 
 lblCleanup:
 	CLOSE(pwcDuplicateString, ExFreePool);
+	if (bLockAcquired)
+	{
+		ExReleaseResourceAndLeaveCriticalRegion(&(ptMessageTable->tLock));
+		bLockAcquired = FALSE;
+	}
 
 	return eStatus;
 }
@@ -1028,6 +1071,7 @@ MESSAGETABLE_EnumerateEntries(
 {
 	NTSTATUS				eStatus			= STATUS_UNSUCCESSFUL;
 	PMESSAGE_TABLE			ptMessageTable	= (PMESSAGE_TABLE)hMessageTable;
+	BOOLEAN					bLockAcquired	= FALSE;
 	PVOID					pvRestartKey	= NULL;
 	PVOID					pvData			= NULL;
 	PCMESSAGE_TABLE_ENTRY	ptPrevious		= NULL;
@@ -1042,6 +1086,9 @@ MESSAGETABLE_EnumerateEntries(
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
 	}
+
+	(VOID)ExEnterCriticalRegionAndAcquireResourceShared(&(ptMessageTable->tLock));
+	bLockAcquired = TRUE;
 
 	for (pvData = RtlEnumerateGenericTableWithoutSplayingAvl(&(ptMessageTable->tTable),
 															 &pvRestartKey);
@@ -1067,6 +1114,12 @@ MESSAGETABLE_EnumerateEntries(
 	eStatus = STATUS_SUCCESS;
 
 lblCleanup:
+	if (bLockAcquired)
+	{
+		ExReleaseResourceAndLeaveCriticalRegion(&(ptMessageTable->tLock));
+		bLockAcquired = FALSE;
+	}
+
 	return eStatus;
 }
 
@@ -1078,6 +1131,8 @@ MESSAGETABLE_Serialize(
 )
 {
 	NTSTATUS						eStatus				= STATUS_UNSUCCESSFUL;
+	PMESSAGE_TABLE					ptMessageTable		= (PMESSAGE_TABLE)hMessageTable;
+	BOOLEAN							bLockAcquired		= FALSE;
 	COUNTING_CALLBACK_CONTEXT		tCountingContext	= { 0 };
 	SIZE_T							cbHeader			= 0;
 	SIZE_T							cbTotal				= 0;
@@ -1093,6 +1148,9 @@ MESSAGETABLE_Serialize(
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
 	}
+
+	(VOID)ExEnterCriticalRegionAndAcquireResourceShared(&(ptMessageTable->tLock));
+	bLockAcquired = TRUE;
 
 	eStatus = MESSAGETABLE_EnumerateEntries(hMessageTable,
 											&messagetable_CountingCallback,
@@ -1148,5 +1206,11 @@ MESSAGETABLE_Serialize(
 
 lblCleanup:
 	CLOSE(ptMessageData, ExFreePool);
+	if (bLockAcquired)
+	{
+		ExReleaseResourceAndLeaveCriticalRegion(&(ptMessageTable->tLock));
+		bLockAcquired = FALSE;
+	}
+
 	return eStatus;
 }
