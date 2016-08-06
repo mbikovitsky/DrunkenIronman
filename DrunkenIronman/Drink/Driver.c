@@ -9,7 +9,48 @@
 /** Headers *************************************************************/
 #include <ntifs.h>
 
+#include <Common.h>
+#include <Drink.h>
+
 #include "VgaDump.h"
+
+
+/** Macros **************************************************************/
+
+/**
+ * Completes an IRP.
+ *
+ * @param[in]	ptIrp			IRP to complete.
+ * @param[in]	eStatus			Status to complete the IRP with
+ *								(will be set in the IO_STATUS block).
+ * @param[in]	pvInformation	Request-specific information
+ *								(will be set in the IO_STATUS block).
+ * @param[in]	ePriorityBoost	Priority boost for the issuer thread.
+ *
+ * @see driver_CompleteRequest.
+ */
+#define COMPLETE_IRP(ptIrp, eStatus, pvInformation, ePriorityBoost)	\
+	CLOSE_TO_VALUE_VARIADIC((ptIrp),								\
+							driver_CompleteRequest,					\
+							NULL,									\
+							(eStatus),								\
+							(pvInformation),						\
+							(ePriorityBoost))
+
+
+/** Globals *************************************************************/
+
+/**
+ * Full name of the control device.
+ */
+STATIC CONST UNICODE_STRING g_usControlDeviceName =
+	RTL_CONSTANT_STRING(L"\\Device\\" DRINK_DEVICE_NAME);
+
+/**
+ * Full name of the control device's symlink.
+ */
+STATIC CONST UNICODE_STRING g_usControlDeviceSymlink =
+	RTL_CONSTANT_STRING(L"\\DosDevices\\Global\\" DRINK_DEVICE_NAME);
 
 
 /** Functions ***********************************************************/
@@ -27,14 +68,123 @@ driver_Unload(
 {
 	PAGED_CODE();
 
-#ifndef DBG
-	UNREFERENCED_PARAMETER(ptDriverObject);
-#endif // !DBG
-
 	ASSERT(NULL != ptDriverObject);
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
-	VGADUMP_Shutdown();
+	// Delete the control device's symlink.
+	(VOID)IoDeleteSymbolicLink((PUNICODE_STRING)&g_usControlDeviceSymlink);
+
+	// Delete the control device.
+	ASSERT(NULL != ptDriverObject->DeviceObject);
+	(VOID)IoDeleteDevice(ptDriverObject->DeviceObject);
+	ASSERT(NULL == ptDriverObject->DeviceObject);
+}
+
+/**
+ * Completes an IRP.
+ *
+ * @param[in]	ptIrp			IRP to complete.
+ * @param[in]	eStatus			Status to complete the IRP with
+ *								(will be set in the IO_STATUS block).
+ * @param[in]	pvInformation	Request-specific information
+ *								(will be set in the IO_STATUS block).
+ * @param[in]	ePriorityBoost	Priority boost for the issuer thread.
+ *
+ * @see COMPLETE_IRP.
+ */
+STATIC
+VOID
+driver_CompleteRequest(
+	_In_	PIRP		ptIrp,
+	_In_	NTSTATUS	eStatus,
+	_In_	ULONG_PTR	pvInformation,
+	_In_	CCHAR		ePriorityBoost
+)
+{
+	if (NULL == ptIrp)
+	{
+		goto lblCleanup;
+	}
+
+	ptIrp->IoStatus.Status = eStatus;
+	ptIrp->IoStatus.Information = pvInformation;
+	IoCompleteRequest(ptIrp, ePriorityBoost);
+	ptIrp = NULL;
+
+lblCleanup:
+	return;
+}
+
+/**
+ * Handler for IRP_MJ_CREATE and IRP_MJ_CLOSE requests.
+ *
+ * @param[in]	ptDeviceObject	The device object.
+ * @param[in]	ptIrp			The IRP.
+ *
+ * @returns NTSTATUS
+ */
+STATIC
+NTSTATUS
+driver_DispatchCreateClose(
+	_In_	PDEVICE_OBJECT	ptDeviceObject,
+	_In_	PIRP			ptIrp
+)
+{
+	NTSTATUS	eStatus	= STATUS_UNSUCCESSFUL;
+
+#ifndef DBG
+	UNREFERENCED_PARAMETER(ptDeviceObject);
+#endif // !DBG
+
+	ASSERT(NULL != ptDeviceObject);
+	ASSERT(NULL != ptIrp);
+
+	eStatus = STATUS_SUCCESS;
+
+//lblCleanup:
+	COMPLETE_IRP(ptIrp, eStatus, 0, IO_NO_INCREMENT);
+	return eStatus;
+}
+
+/**
+ * Handler for IRP_MJ_DEVICE_CONTROL requests.
+ *
+ * @param[in]	ptDeviceObject	The device object.
+ * @param[in]	ptIrp			The IRP.
+ *
+ * @returns NTSTATUS
+ */
+STATIC
+NTSTATUS
+driver_DispatchDeviceControl(
+	_In_	PDEVICE_OBJECT	ptDeviceObject,
+	_In_	PIRP			ptIrp
+)
+{
+	NTSTATUS			eStatus			= STATUS_UNSUCCESSFUL;
+	PIO_STACK_LOCATION	ptStackLocation	= NULL;
+
+#ifndef DBG
+	UNREFERENCED_PARAMETER(ptDeviceObject);
+#endif // !DBG
+
+	ASSERT(NULL != ptDeviceObject);
+	ASSERT(NULL != ptIrp);
+
+	ptStackLocation = IoGetCurrentIrpStackLocation(ptIrp);
+	ASSERT(NULL != ptStackLocation);
+
+	switch (ptStackLocation->Parameters.DeviceIoControl.IoControlCode)
+	{
+	default:
+		eStatus = STATUS_INVALID_DEVICE_REQUEST;
+	}
+
+	// Keep last status
+
+//lblCleanup:
+	COMPLETE_IRP(ptIrp, eStatus, 0, IO_NO_INCREMENT);
+	return eStatus;
 }
 
 /**
@@ -52,8 +202,9 @@ DriverEntry(
 	_In_	PUNICODE_STRING	pusRegistryPath
 )
 {
-	NTSTATUS	eStatus			= STATUS_UNSUCCESSFUL;
-	BOOLEAN		bShutdownDump	= FALSE;
+	NTSTATUS		eStatus			= STATUS_UNSUCCESSFUL;
+	PDEVICE_OBJECT	ptControlDevice	= NULL;
+	BOOLEAN			bDeleteSymlink	= FALSE;
 
 	PAGED_CODE();
 
@@ -62,28 +213,61 @@ DriverEntry(
 	ASSERT(NULL != ptDriverObject);
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
+	//
+	// Initialize the different runtimes.
+	//
+
 	ExInitializeDriverRuntime(DrvRtPoolNxOptIn);
 
-	ptDriverObject->DriverUnload = &driver_Unload;
+	//
+	// Initialize the driver object.
+	//
 
-	eStatus = VGADUMP_Initialize();
+	ptDriverObject->DriverUnload = &driver_Unload;
+	ptDriverObject->MajorFunction[IRP_MJ_CREATE]			= &driver_DispatchCreateClose;
+	ptDriverObject->MajorFunction[IRP_MJ_CLOSE]				= &driver_DispatchCreateClose;
+	ptDriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL]	= &driver_DispatchDeviceControl;
+
+	//
+	// Create the control device
+	//
+
+	eStatus = IoCreateDevice(ptDriverObject,
+							 0,
+							 (PUNICODE_STRING)&g_usControlDeviceName,
+							 DRINK_DEVICE_TYPE,
+							 0,
+							 FALSE,
+							 &ptControlDevice);
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
 	}
-	bShutdownDump = TRUE;
 
-	// All done!
-	bShutdownDump = FALSE;
+	eStatus = IoCreateSymbolicLink((PUNICODE_STRING)&g_usControlDeviceSymlink,
+								   (PUNICODE_STRING)&g_usControlDeviceName);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+	bDeleteSymlink = TRUE;
+
+	SetFlag(ptControlDevice->Flags, DO_BUFFERED_IO);
+	ClearFlag(ptControlDevice->Flags, DO_DEVICE_INITIALIZING);
+
+	// Transfer ownership:
+	ptControlDevice = NULL;
+	bDeleteSymlink = FALSE;
 
 	eStatus = STATUS_SUCCESS;
 
 lblCleanup:
-	if (bShutdownDump)
+	if (bDeleteSymlink)
 	{
-		VGADUMP_Shutdown();
-		bShutdownDump = FALSE;
+		(VOID)IoDeleteSymbolicLink((PUNICODE_STRING)&g_usControlDeviceSymlink);
+		bDeleteSymlink = FALSE;
 	}
+	CLOSE(ptControlDevice, IoDeleteDevice);
 
 	return eStatus;
 }
