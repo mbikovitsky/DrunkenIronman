@@ -52,6 +52,11 @@ STATIC CONST UNICODE_STRING g_usControlDeviceName =
 STATIC CONST UNICODE_STRING g_usControlDeviceSymlink =
 	RTL_CONSTANT_STRING(L"\\DosDevices\\Global\\" DRINK_DEVICE_NAME);
 
+/**
+ * Indicates whether VGA dumping has been initialized.
+ */
+STATIC BOOLEAN g_bVgaDumpInitialized = FALSE;
+
 
 /** Forward Declarations ************************************************/
 
@@ -85,6 +90,12 @@ driver_Unload(
 
 	ASSERT(NULL != ptDriverObject);
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
+
+	if (g_bVgaDumpInitialized)
+	{
+		VGADUMP_Shutdown();
+		g_bVgaDumpInitialized = FALSE;
+	}
 
 	// Delete the control device's symlink.
 	(VOID)IoDeleteSymbolicLink((PUNICODE_STRING)&g_usControlDeviceSymlink);
@@ -194,13 +205,24 @@ driver_DispatchDeviceControl(
 
 	switch (ptStackLocation->Parameters.DeviceIoControl.IoControlCode)
 	{
+	case IOCTL_DRINK_BUGSHOT:
+		eStatus = VGADUMP_Initialize();
+		if (!NT_SUCCESS(eStatus))
+		{
+			goto lblCleanup;
+		}
+		g_bVgaDumpInitialized = TRUE;
+
+		break;
+
 	default:
 		eStatus = STATUS_INVALID_DEVICE_REQUEST;
+		break;
 	}
 
 	// Keep last status
 
-//lblCleanup:
+lblCleanup:
 	COMPLETE_IRP(ptIrp, eStatus, 0, IO_NO_INCREMENT);
 	return eStatus;
 }

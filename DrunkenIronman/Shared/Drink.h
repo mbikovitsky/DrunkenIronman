@@ -53,6 +53,15 @@ EXTERN_C CONST GUID DECLSPEC_SELECTANY g_tVgaDumpGuid =
  */
 #define DRINK_DEVICE_TYPE (FILE_DEVICE_UNKNOWN)
 
+/**
+ * IOCTL for setting-up a bugcheck screenshot.
+ *
+ * Input:	None
+ * Output:	None
+ */
+#define IOCTL_DRINK_BUGSHOT \
+	(CTL_CODE(DRINK_DEVICE_TYPE, 0x800, METHOD_BUFFERED, FILE_ANY_ACCESS))
+
 
 /** Typedefs ************************************************************/
 
