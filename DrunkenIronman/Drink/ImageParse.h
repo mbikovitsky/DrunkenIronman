@@ -14,6 +14,23 @@
 #include <ntimage.h>
 
 
+/** Typedefs ************************************************************/
+
+/**
+ * Defines a single resource path component.
+ */
+typedef struct _RESOURCE_PATH_COMPONENT
+{
+	BOOLEAN	bNamed;
+	union
+	{
+		USHORT			nId;
+		UNICODE_STRING	usName;
+	} tComponent;
+} RESOURCE_PATH_COMPONENT, *PRESOURCE_PATH_COMPONENT;
+typedef CONST RESOURCE_PATH_COMPONENT *PCRESOURCE_PATH_COMPONENT;
+
+
 /** Functions ***********************************************************/
 
 /**
@@ -49,4 +66,24 @@ IMAGEPARSE_DirectoryEntryToData(
 	_In_		USHORT	nDirectoryEntry,
 	_Outptr_	PVOID *	ppvDirectoryData,
 	_Out_		PULONG	pcbDirectoryData
+);
+
+/**
+ * Retrieves a resource from a mapped image.
+ *
+ * @param[in]	pvImageBase		Base of the mapped image.
+ * @param[in]	ptResourcePath	Path for the resource to find.
+ * @param[in]	nPathLength		Length of the path, in elements.
+ * @param[out]	ppvResourceData	Will receive a pointer to the resource data.
+ * @param[out]	pcbResourceData	Will receive the resource data's size, in bytes.
+ *
+ * @returns NTSTATUS
+ */
+NTSTATUS
+IMAGEPARSE_FindResource(
+	_In_											PVOID						pvImageBase,
+	_In_reads_(nPathLength)							PCRESOURCE_PATH_COMPONENT	ptResourcePath,
+	_In_											ULONG						nPathLength,
+	_Outptr_result_bytebuffer_(*pcbResourceData)	PVOID *						ppvResourceData,
+	_Out_											PULONG						pcbResourceData
 );
