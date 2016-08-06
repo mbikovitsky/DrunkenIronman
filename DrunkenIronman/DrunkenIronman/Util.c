@@ -3,7 +3,7 @@
  * @author biko
  * @date 2016-07-30
  *
- * Miscellaneous utilities - implementation.
+ * Miscellaneous user-mode utilities - implementation.
  */
 
 /** Headers *************************************************************/

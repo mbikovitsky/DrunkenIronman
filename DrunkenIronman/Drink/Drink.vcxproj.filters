@@ -13,6 +13,9 @@
     <Filter Include="ImageParse">
       <UniqueIdentifier>{ae2f0c31-4126-436f-86ea-5393548fe9d6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Util">
+      <UniqueIdentifier>{1a568b32-cad9-4a38-9477-333833a33cce}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Driver.c">
@@ -27,6 +30,9 @@
     <ClCompile Include="ImageParse.c">
       <Filter>ImageParse</Filter>
     </ClCompile>
+    <ClCompile Include="Util.c">
+      <Filter>Util</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="VgaDump.h">
@@ -37,6 +43,9 @@
     </ClInclude>
     <ClInclude Include="ImageParse.h">
       <Filter>ImageParse</Filter>
+    </ClInclude>
+    <ClInclude Include="Util.h">
+      <Filter>Util</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
