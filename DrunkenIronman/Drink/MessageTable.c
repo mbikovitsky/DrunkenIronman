@@ -69,6 +69,7 @@ typedef struct _MESSAGE_RESOURCE_DATA
 	MESSAGE_RESOURCE_BLOCK	atBlocks[ANYSIZE_ARRAY];
 } MESSAGE_RESOURCE_DATA, *PMESSAGE_RESOURCE_DATA;
 typedef CONST MESSAGE_RESOURCE_DATA *PCMESSAGE_RESOURCE_DATA;
+C_ASSERT(__alignof(MESSAGE_RESOURCE_DATA) >= __alignof(MESSAGE_RESOURCE_ENTRY));
 
 /**
  * Context for the counting callback.
@@ -109,14 +110,22 @@ typedef CONST SERIALIZING_CALLBACK_CONTEXT *PCSERIALIZING_CALLBACK_CONTEXT;
 #define MESSAGE_TABLE_POOL_TAG (RtlUlongByteSwap('MsgT'))
 
 /**
+ * Maximum size, in bytes, of a MESSAGE_RESOURCE_ENTRY,
+ * including the string data.
+ *
+ * @remark	This definition assumes that the size field in
+ *			the MESSAGE_RESOURCE_ENTRY structure is a USHORT
+ *			or larger.
+ */
+#define MESSAGE_RESOURCE_ENTRY_MAX_SIZE \
+	(ALIGN_DOWN_BY(MAXUSHORT, __alignof(MESSAGE_RESOURCE_ENTRY)))
+
+/**
  * Maximum size, in bytes, of a Unicode string that
  * can be stored in a message table. The size is
  * constrained by the ability to serialize the string
  * into a MESSAGE_RESOURCE_ENTRY.
  *
- * @remark	This definition assumes that the size field in
- *			the MESSAGE_RESOURCE_ENTRY structure is a USHORT
- *			or larger.
  * @remark	A valid UNICODE_STRING may actually be shorter
  *			than the size defined here.
  *			This is validated via messagetable_IsValidUnicodeString.
@@ -125,7 +134,7 @@ typedef CONST SERIALIZING_CALLBACK_CONTEXT *PCSERIALIZING_CALLBACK_CONTEXT;
  * @see messagetable_IsValidUnicodeString.
  */
 #define MESSAGE_TABLE_UNICODE_STRING_MAX_SIZE \
-	(MAXUSHORT - UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText) - sizeof(UNICODE_NULL))
+	(MESSAGE_RESOURCE_ENTRY_MAX_SIZE - UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText) - sizeof(UNICODE_NULL))
 C_ASSERT(MESSAGE_TABLE_UNICODE_STRING_MAX_SIZE > 0);
 
 /**
@@ -134,14 +143,10 @@ C_ASSERT(MESSAGE_TABLE_UNICODE_STRING_MAX_SIZE > 0);
  * constrained by the ability to serialize the string
  * into a MESSAGE_RESOURCE_ENTRY.
  *
- * @remark	This definition assumes that the size field in
- *			the MESSAGE_RESOURCE_ENTRY structure is a USHORT
- *			or larger.
- *
  * @see MESSAGE_RESOURCE_ENTRY.
  */
 #define MESSAGE_TABLE_ANSI_STRING_MAX_SIZE \
-	(MAXUSHORT - UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText) - sizeof(ANSI_NULL))
+	(MESSAGE_RESOURCE_ENTRY_MAX_SIZE - UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText) - sizeof(ANSI_NULL))
 C_ASSERT(MESSAGE_TABLE_ANSI_STRING_MAX_SIZE > 0);
 
 
@@ -536,7 +541,10 @@ messagetable_SizeofSerializedEntry(
 
 	ASSERT(NULL != ptEntry);
 
+	// Begin with the size of the header.
 	cbTotal = UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText);
+
+	// Add the size of the string itself.
 	if (ptEntry->bUnicode)
 	{
 		eStatus = RtlUShortAdd(cbTotal,
@@ -561,6 +569,12 @@ messagetable_SizeofSerializedEntry(
 							   &cbTotal);
 		ASSERT(NT_SUCCESS(eStatus));
 	}
+
+	// Now add any required padding.
+	eStatus = RtlUShortAdd(cbTotal,
+						   cbTotal % __alignof(MESSAGE_RESOURCE_ENTRY),
+						   &cbTotal);
+	ASSERT(NT_SUCCESS(eStatus));
 
 	return cbTotal;
 }
