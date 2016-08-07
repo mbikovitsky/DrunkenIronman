@@ -172,16 +172,46 @@ main_HandleConvert(
 );
 
 /**
- * Handler for the "bugshot" subfunction.
- * Loads the driver and instructs it to take
- * a screenshot on the next bugheck.
+ * Handler for the "load" subfunction.
+ * Loads the driver.
  *
- * @param[in]	nArguments		Number of command line arguments.
- * @param[in]	ppwszArguments	The command line arguments.
+ * @param[in]	nArguments		Ignored.
+ * @param[in]	ppwszArguments	Ignored.
  *
  * @returns HRESULT
+ */
+STATIC
+HRESULT
+main_HandleLoad(
+	_In_					INT				nArguments,
+	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
+);
+
+/**
+ * Handler for the "unload" subfunction.
+ * Unloads the driver.
  *
- * @see something
+ * @param[in]	nArguments		Ignored.
+ * @param[in]	ppwszArguments	Ignored.
+ *
+ * @returns HRESULT
+ */
+STATIC
+HRESULT
+main_HandleUnload(
+	_In_					INT				nArguments,
+	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
+);
+
+/**
+ * Handler for the "bugshot" subfunction.
+ * Instructs the driver to take
+ * a screenshot on the next bugheck.
+ *
+ * @param[in]	nArguments		Ignored.
+ * @param[in]	ppwszArguments	Ignored.
+ *
+ * @returns HRESULT
  */
 STATIC
 HRESULT

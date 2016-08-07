@@ -13,6 +13,7 @@
 
 #include <Drink.h>
 
+#include "DrinkControl.h"
 #include "Util.h"
 #include "DumpParse.h"
 #include "Resource.h"
@@ -29,6 +30,16 @@ STATIC CONST SUBFUNCTION_HANDLER_ENTRY g_atSubfunctionHandlers[] = {
 	{
 		L"convert",
 		&main_HandleConvert
+	},
+
+	{
+		L"load",
+		&main_HandleLoad
+	},
+
+	{
+		L"unload",
+		&main_HandleUnload
 	},
 
 	{
@@ -248,92 +259,74 @@ lblCleanup:
 
 STATIC
 HRESULT
-main_HandleBugshot(
+main_HandleLoad(
 	_In_					INT				nArguments,
 	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
 )
 {
-	HRESULT		hrResult							= E_FAIL;
-	PVOID		pvDriver							= NULL;
-	DWORD		cbDriver							= 0;
-	PWSTR		pwszTempDriverPath					= NULL;
-	SC_HANDLE	hServiceControlManager				= NULL;
-	SC_HANDLE	hDriverService						= NULL;
+	HRESULT	hrResult	= E_FAIL;
 
 	UNREFERENCED_PARAMETER(nArguments);
 	UNREFERENCED_PARAMETER(ppwszArguments);
 
-	hrResult = UTIL_ReadResource(GetModuleHandleW(NULL),
-								 MAKEINTRESOURCEW(IDR_DRIVER),
-								 L"BINARY",
-								 MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL),
-								 &pvDriver,
-								 &cbDriver);
+	hrResult = DRINKCONTROL_LoadDriver();
 	if (FAILED(hrResult))
 	{
-		goto lblCleanup;
-	}
-
-	hrResult = UTIL_WriteToTemporaryFile(pvDriver,
-										 cbDriver,
-										 &pwszTempDriverPath);
-	if (FAILED(hrResult))
-	{
-		goto lblCleanup;
-	}
-
-	hServiceControlManager = OpenSCManagerW(NULL,
-											SERVICES_ACTIVE_DATABASE,
-											SC_MANAGER_CREATE_SERVICE);
-	if (NULL == hServiceControlManager)
-	{
-		hrResult = HRESULT_FROM_WIN32(GetLastError());
-		goto lblCleanup;
-	}
-
-	hDriverService = CreateServiceW(hServiceControlManager,
-									L"Drink",
-									NULL,
-									SERVICE_START | DELETE,
-									SERVICE_KERNEL_DRIVER,
-									SERVICE_DEMAND_START,
-									SERVICE_ERROR_IGNORE,
-									pwszTempDriverPath,
-									NULL,
-									NULL,
-									NULL,
-									NULL,
-									NULL);
-	if (NULL == hDriverService)
-	{
-		hrResult = HRESULT_FROM_WIN32(GetLastError());
-		goto lblCleanup;
-	}
-
-	if (!StartServiceW(hDriverService,
-					   0,
-					   NULL))
-	{
-		hrResult = HRESULT_FROM_WIN32(GetLastError());
 		goto lblCleanup;
 	}
 
 	hrResult = S_OK;
 
 lblCleanup:
-	if (NULL != hDriverService)
-	{
-		(VOID)DeleteService(hDriverService);
-	}
-	CLOSE(hDriverService, CloseServiceHandle);
-	CLOSE(hServiceControlManager, CloseServiceHandle);
-	if (NULL != pwszTempDriverPath)
-	{
-		(VOID)DeleteFileW(pwszTempDriverPath);
-	}
-	HEAPFREE(pwszTempDriverPath);
-	HEAPFREE(pvDriver);
+	return hrResult;
+}
 
+STATIC
+HRESULT
+main_HandleUnload(
+	_In_					INT				nArguments,
+	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
+)
+{
+	HRESULT	hrResult	= E_FAIL;
+
+	UNREFERENCED_PARAMETER(nArguments);
+	UNREFERENCED_PARAMETER(ppwszArguments);
+
+	hrResult = DRINKCONTROL_UnloadDriver();
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	hrResult = S_OK;
+
+lblCleanup:
+	return hrResult;
+}
+
+STATIC
+HRESULT
+main_HandleBugshot(
+	_In_					INT				nArguments,
+	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
+)
+{
+	HRESULT	hrResult	= E_FAIL;
+
+	UNREFERENCED_PARAMETER(nArguments);
+	UNREFERENCED_PARAMETER(ppwszArguments);
+
+	hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_BUGSHOT,
+										  NULL, 0);
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	hrResult = S_OK;
+
+lblCleanup:
 	return hrResult;
 }
 
