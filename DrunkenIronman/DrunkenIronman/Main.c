@@ -9,9 +9,11 @@
 /** Headers *************************************************************/
 #include <Windows.h>
 #include <intsafe.h>
+#include <strsafe.h>
 
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
 
 #include <Drink.h>
 
@@ -344,11 +346,11 @@ main_HandleVanity(
 	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
 )
 {
-	HRESULT	hrResult	= E_FAIL;
-	PCWSTR	pwszInput	= NULL;
-	INT		cbReturned	= 0;
-	DWORD	cbInput		= 0;
-	PSTR	pszInput	= NULL;
+	HRESULT	hrResult		= E_FAIL;
+	PCWSTR	pwszInput		= NULL;
+	DWORD	cchFormatted	= 0;
+	DWORD	cbFormatted		= 0;
+	PSTR	pszFormatted	= NULL;
 
 	if (SUBFUNCTION_VANITY_ARGS_COUNT != nArguments)
 	{
@@ -359,44 +361,50 @@ main_HandleVanity(
 	pwszInput = ppwszArguments[SUBFUNCTION_VANITY_ARG_STRING];
 	assert(NULL != pwszInput);
 
-	cbReturned = WideCharToMultiByte(CP_ACP,
-									 WC_NO_BEST_FIT_CHARS,
-									 pwszInput, -1,
-									 NULL, 0,
-									 "_",
-									 NULL);
-	if (0 == cbReturned)
-	{
-		hrResult = HRESULT_FROM_WIN32(GetLastError());
-		goto lblCleanup;
-	}
-
-	hrResult = IntToDWord(cbReturned, &cbInput);
+	// Calculate the length of the formatted string.
+	hrResult = IntToDWord(_scprintf(VANITY_FORMAT_STRING, pwszInput),
+						  &cchFormatted);
 	if (FAILED(hrResult))
 	{
 		goto lblCleanup;
 	}
 
-	pszInput = HEAPALLOC(cbInput);
-	if (NULL == pszInput)
+	// Add the null terminator.
+	hrResult = DWordAdd(cchFormatted, 1, &cchFormatted);
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	// Calculate the size of the formatted string (in bytes).
+	hrResult = DWordMult(cchFormatted,
+						 sizeof(pszFormatted[0]),
+						 &cbFormatted);
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	// Allocate memory for the string.
+	pszFormatted = HEAPALLOC(cbFormatted);
+	if (NULL == pszFormatted)
 	{
 		hrResult = E_OUTOFMEMORY;
 		goto lblCleanup;
 	}
 
-	cbReturned = WideCharToMultiByte(CP_ACP,
-									 WC_NO_BEST_FIT_CHARS,
-									 pwszInput, -1,
-									 pszInput, (INT)cbInput,
-									 "_",
-									 NULL);
-	if (0 == cbReturned)
+	// Format it.
+	hrResult = StringCbPrintfA(pszFormatted,
+							   cbFormatted,
+							   VANITY_FORMAT_STRING,
+							   pwszInput);
+	if (FAILED(hrResult))
 	{
-		hrResult = HRESULT_FROM_WIN32(GetLastError());
 		goto lblCleanup;
 	}
 
-	hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_VANITY, pszInput, cbInput);
+	// Adventure time.
+	hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_VANITY, pszFormatted, cbFormatted);
 	if (FAILED(hrResult))
 	{
 		goto lblCleanup;
@@ -405,7 +413,7 @@ main_HandleVanity(
 	hrResult = S_OK;
 
 lblCleanup:
-	HEAPFREE(pszInput);
+	HEAPFREE(pszFormatted);
 
 	return hrResult;
 }

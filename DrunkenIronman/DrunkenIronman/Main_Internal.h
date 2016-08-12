@@ -13,6 +13,14 @@
 #include <Drink.h>
 
 
+/** Constants ***********************************************************/
+
+/**
+ * Format string for the custom bugcheck message.
+ */
+#define VANITY_FORMAT_STRING ("%S\r\n")
+
+
 /** Enums ***************************************************************/
 
 /**
