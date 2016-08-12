@@ -67,11 +67,6 @@ util_HeapFree(
 	}
 }
 
-HRESULT
-UTIL_IsWow64Process(
-	_Out_	PBOOL	pbWow64Process
-);
-
 /**
  * Reads a resource from a loaded image.
  *
@@ -100,40 +95,6 @@ UTIL_ReadResource(
 	_In_										WORD	eLanguage,
 	_Outptr_result_bytebuffer_(*pcbResource)	PVOID *	ppvResource,
 	_Out_										PDWORD	pcbResource
-);
-
-HRESULT
-UTIL_ReadResourceFromFile(
-	_In_										PCTSTR	pszResourceModulePath,
-	_In_										PCTSTR	pszResourceName,
-	_In_										PCTSTR	pszResourceType,
-	_In_										WORD	eLanguage,
-	_Outptr_result_bytebuffer_(*pcbResource)	PVOID *	ppvResource,
-	_Out_										PDWORD	pcbResource
-);
-
-HRESULT
-UTIL_QuerySystemInformation(
-	_In_												SYSTEM_INFORMATION_CLASS	eSystemInformationClass,
-	_Outptr_result_bytebuffer_(*pcbSystemInformation)	PVOID *						ppvSystemInformation,
-	_Out_												PDWORD						pcbSystemInformation
-);
-
-HRESULT
-UTIL_DuplicateStringAnsiToUnicode(
-	_In_		PCSTR	pszSource,
-	_Outptr_	PWSTR *	ppwszDestination
-);
-
-HRESULT
-UTIL_NtCreateFile(
-	_In_		PCWSTR		pwszPath,
-	_In_		ACCESS_MASK	eDesiredAccess,
-	_In_		DWORD		fFileAttributes,
-	_In_		DWORD		fShareAccess,
-	_In_		DWORD		eCreateDisposition,
-	_In_		DWORD		fCreateOptions,
-	_Out_		PHANDLE		phFile
 );
 
 /**

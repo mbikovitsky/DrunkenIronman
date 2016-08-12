@@ -342,24 +342,12 @@ wmain(
 )
 {
 	HRESULT						hrResult		= E_FAIL;
-	BOOL						bWow64Process	= FALSE;
 	DWORD						nIndex			= 0;
 	PCSUBFUNCTION_HANDLER_ENTRY	ptCurrentEntry	= NULL;
 	PFN_SUBFUNCTION_HANDLER		pfnHandler		= NULL;
 
 	assert(0 != nArguments);
 	assert(NULL != ppwszArguments);
-
-	hrResult = UTIL_IsWow64Process(&bWow64Process);
-	if (FAILED(hrResult))
-	{
-		goto lblCleanup;
-	}
-	if (bWow64Process)
-	{
-		hrResult = HRESULT_FROM_WIN32(ERROR_WOW_ASSERTION);
-		goto lblCleanup;
-	}
 
 	if (CMD_ARGS_COUNT > nArguments)
 	{
