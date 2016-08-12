@@ -661,7 +661,6 @@ messagetable_SerializingCallback(
 	_Out_		PBOOLEAN				pbContinueEnumeration
 )
 {
-	NTSTATUS						eStatus			= STATUS_UNSUCCESSFUL;
 	PSERIALIZING_CALLBACK_CONTEXT	ptContext		= (PSERIALIZING_CALLBACK_CONTEXT)pvContext;
 	PMESSAGE_RESOURCE_BLOCK			ptCurrentBlock	= NULL;
 	PMESSAGE_RESOURCE_ENTRY			ptCurrentEntry	= NULL;
@@ -684,16 +683,15 @@ messagetable_SerializingCallback(
 		// New block!
 		//
 
-		eStatus = RtlULongAdd(ptContext->nCurrentBlock,
-							  1,
-							  &(ptContext->nCurrentBlock));
-		ASSERT(NT_SUCCESS(eStatus));
+		// Safe to increment the counter because we already
+		// ASSERTed the block count inside messagetable_CountingCallback.
+		++(ptContext->nCurrentBlock);
 
 		++ptCurrentBlock;
 
 		ptCurrentBlock->nLowId = ptEntry->nEntryId;
 		ptCurrentBlock->cbOffsetToEntries = RtlPointerToOffset(ptContext->ptMessageData,
-															  ptContext->pcCurrentStringPosition);
+															   ptContext->pcCurrentStringPosition);
 	}
 
 	// Update the last ID for the current block
