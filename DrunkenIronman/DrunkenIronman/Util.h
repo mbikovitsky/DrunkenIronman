@@ -8,7 +8,7 @@
 #pragma once
 
 /** Headers *************************************************************/
-#include "Precomp.h"
+#include <Windows.h>
 
 #include <Common.h>
 

@@ -7,7 +7,7 @@
  */
 
 /** Headers *************************************************************/
-#include "Precomp.h"
+#include <Windows.h>
 
 #include <Common.h>
 #include <Drink.h>

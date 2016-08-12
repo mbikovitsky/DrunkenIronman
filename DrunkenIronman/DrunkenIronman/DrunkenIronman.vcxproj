@@ -31,7 +31,6 @@
     <ClInclude Include="Main_Internal.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Util.h" />
-    <ClInclude Include="Precomp.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">

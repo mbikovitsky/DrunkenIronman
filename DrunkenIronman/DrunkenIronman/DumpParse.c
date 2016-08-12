@@ -7,7 +7,7 @@
  */
 
 /** Headers *************************************************************/
-#include "Precomp.h"
+#include <Windows.h>
 #include <DbgEng.h>
 
 #include "Util.h"

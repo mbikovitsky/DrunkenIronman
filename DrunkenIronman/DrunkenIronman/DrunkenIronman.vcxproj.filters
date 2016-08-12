@@ -38,7 +38,6 @@
     <ClInclude Include="Util.h">
       <Filter>Util</Filter>
     </ClInclude>
-    <ClInclude Include="Precomp.h" />
     <ClInclude Include="DumpParse.h">
       <Filter>DumpParse</Filter>
     </ClInclude>

@@ -7,7 +7,8 @@
  */
 
 /** Headers *************************************************************/
-#include "Precomp.h"
+#include <Windows.h>
+
 #include <assert.h>
 #include <string.h>
 

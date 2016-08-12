@@ -7,7 +7,7 @@
  */
 
 /** Headers *************************************************************/
-#include "Precomp.h"
+#include <Windows.h>
 #include <strsafe.h>
 
 #include "Util.h"
