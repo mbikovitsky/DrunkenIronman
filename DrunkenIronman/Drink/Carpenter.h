@@ -95,3 +95,19 @@ CARPENTER_StageMessage(
 	_In_	ULONG			nMessageId,
 	_In_	PCANSI_STRING	psMessage
 );
+
+/**
+ * Applies the prepared patch to the message table.
+ *
+ * @param[in]	hCarpenter	A patcher instance.
+ *
+ * @returns NTSTATUS
+ *
+ * @remark	If the function fails, the patch
+ *			is not applied.
+ */
+_IRQL_requires_(PASSIVE_LEVEL)
+NTSTATUS
+CARPENTER_ApplyPatch(
+	_In_	HCARPENTER	hCarpenter
+);

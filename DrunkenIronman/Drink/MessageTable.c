@@ -55,7 +55,7 @@ typedef struct _MESSAGE_RESOURCE_BLOCK
 {
 	ULONG	nLowId;
 	ULONG	nHighId;
-	ULONG	nOffsetToEntries;
+	ULONG	cbOffsetToEntries;
 } MESSAGE_RESOURCE_BLOCK, *PMESSAGE_RESOURCE_BLOCK;
 typedef CONST MESSAGE_RESOURCE_BLOCK *PCMESSAGE_RESOURCE_BLOCK;
 
@@ -683,7 +683,7 @@ messagetable_SerializingCallback(
 		++ptCurrentBlock;
 
 		ptCurrentBlock->nLowId = ptEntry->nEntryId;
-		ptCurrentBlock->nOffsetToEntries = RtlPointerToOffset(ptContext->ptMessageData,
+		ptCurrentBlock->cbOffsetToEntries = RtlPointerToOffset(ptContext->ptMessageData,
 															  ptContext->pcCurrentStringPosition);
 	}
 
@@ -861,7 +861,6 @@ MESSAGETABLE_CreateFromResource(
 {
 	NTSTATUS					eStatus			= STATUS_UNSUCCESSFUL;
 	HMESSAGETABLE				hMessageTable	= NULL;
-	CONST UCHAR *				pcOrigin		= (CONST UCHAR *)pvMessageTableResource;
 	PCMESSAGE_RESOURCE_DATA		ptResourceData	= (PCMESSAGE_RESOURCE_DATA)pvMessageTableResource;
 	ULONG						nCurrentBlock	= 0;
 	PCMESSAGE_RESOURCE_BLOCK	ptCurrentBlock	= NULL;
@@ -892,7 +891,8 @@ MESSAGETABLE_CreateFromResource(
 		ptCurrentBlock = &(ptResourceData->atBlocks[nCurrentBlock]);
 
 		nCurrentId = ptCurrentBlock->nLowId;
-		ptCurrentEntry = (PCMESSAGE_RESOURCE_ENTRY)(pcOrigin + ptCurrentBlock->nOffsetToEntries);
+		ptCurrentEntry = (PCMESSAGE_RESOURCE_ENTRY)RtlOffsetToPointer(pvMessageTableResource,
+																	  ptCurrentBlock->cbOffsetToEntries);
 		while (nCurrentId <= ptCurrentBlock->nHighId)
 		{
 			if (1 == ptCurrentEntry->fFlags)
@@ -921,7 +921,8 @@ MESSAGETABLE_CreateFromResource(
 			}
 
 			++nCurrentId;
-			ptCurrentEntry = (PCMESSAGE_RESOURCE_ENTRY)((PUCHAR)ptCurrentEntry + ptCurrentEntry->cbLength);
+			ptCurrentEntry = (PCMESSAGE_RESOURCE_ENTRY)RtlOffsetToPointer(ptCurrentEntry,
+																		  ptCurrentEntry->cbLength);
 		}
 	}
 

@@ -196,3 +196,97 @@ CARPENTER_StageMessage(
 lblCleanup:
 	return eStatus;
 }
+
+_IRQL_requires_(PASSIVE_LEVEL)
+NTSTATUS
+CARPENTER_ApplyPatch(
+	_In_	HCARPENTER	hCarpenter
+)
+{
+	NTSTATUS	eStatus				= STATUS_UNSUCCESSFUL;
+	PCARPENTER	ptCarpenter			= (PCARPENTER)hCarpenter;
+	PVOID		pvNewMessageTable	= NULL;
+	SIZE_T		cbNewMessageTable	= 0;
+	PMDL		ptMdl				= NULL;
+	BOOLEAN		bMdlLocked			= FALSE;
+	PVOID		pvNewMapping		= NULL;
+
+	PAGED_CODE();
+
+	if ((NULL == hCarpenter) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+	{
+		goto lblCleanup;
+	}
+
+	eStatus = MESSAGETABLE_Serialize(ptCarpenter->hMessageTable,
+									 &pvNewMessageTable,
+									 &cbNewMessageTable);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Make sure the new table does not exceed in size
+	// the old one.
+	if (cbNewMessageTable > ptCarpenter->cbInImageMessageTable)
+	{
+		eStatus = STATUS_BUFFER_TOO_SMALL;
+		goto lblCleanup;
+	}
+
+	ptMdl = IoAllocateMdl(ptCarpenter->pvInImageMessageTable,
+						  ptCarpenter->cbInImageMessageTable,
+						  FALSE,
+						  FALSE,
+						  NULL);
+	if (NULL == ptMdl)
+	{
+		eStatus = STATUS_INSUFFICIENT_RESOURCES;
+		goto lblCleanup;
+	}
+
+	__try
+	{
+		MmProbeAndLockPages(ptMdl, KernelMode, IoReadAccess);
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		eStatus = GetExceptionCode();
+		goto lblCleanup;
+	}
+	bMdlLocked = TRUE;
+
+	pvNewMapping = MmGetSystemAddressForMdlSafe(ptMdl, NormalPagePriority);
+	if (NULL == pvNewMapping)
+	{
+		eStatus = STATUS_INSUFFICIENT_RESOURCES;
+		goto lblCleanup;
+	}
+
+	eStatus = MmProtectMdlSystemAddress(ptMdl, PAGE_READWRITE);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Patch the message table
+	RtlMoveMemory(pvNewMapping, pvNewMessageTable, cbNewMessageTable);
+
+	// Zero the rest
+	RtlSecureZeroMemory(RtlOffsetToPointer(pvNewMapping, cbNewMessageTable),
+						ptCarpenter->cbInImageMessageTable - cbNewMessageTable);
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	if (bMdlLocked)
+	{
+		MmUnlockPages(ptMdl);
+		bMdlLocked = FALSE;
+	}
+	CLOSE(ptMdl, IoFreeMdl);
+	CLOSE(pvNewMessageTable, ExFreePool);
+
+	return eStatus;
+}
