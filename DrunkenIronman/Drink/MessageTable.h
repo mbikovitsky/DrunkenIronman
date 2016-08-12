@@ -12,6 +12,8 @@
 /** Headers *************************************************************/
 #include <ntifs.h>
 
+#include "Util.h"
+
 
 /** Typedefs ************************************************************/
 
@@ -72,6 +74,7 @@ typedef FN_MESSAGETABLE_ENUMERATION_CALLBACK *PFN_MESSAGETABLE_ENUMERATION_CALLB
  * @returns NTSTATUS
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 MESSAGETABLE_Create(
 	_Out_	PHMESSAGETABLE	phMessageTable
@@ -88,6 +91,7 @@ MESSAGETABLE_Create(
  * @returns NTSTATUS
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 MESSAGETABLE_CreateFromResource(
 	_In_reads_bytes_(cbMessageTableResource)	PVOID			pvMessageTableResource,
@@ -101,6 +105,7 @@ MESSAGETABLE_CreateFromResource(
  * @param[in]	hMessageTable	Message table to destroy.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 VOID
 MESSAGETABLE_Destroy(
 	_In_	HMESSAGETABLE	hMessageTable
@@ -119,6 +124,7 @@ MESSAGETABLE_Destroy(
  *			it is overwritten.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 MESSAGETABLE_InsertAnsi(
 	_In_	HMESSAGETABLE	hMessageTable,
@@ -139,6 +145,7 @@ MESSAGETABLE_InsertAnsi(
  *			it is overwritten.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 MESSAGETABLE_InsertUnicode(
 	_In_	HMESSAGETABLE		hMessageTable,
@@ -165,6 +172,7 @@ MESSAGETABLE_InsertUnicode(
  *			may result in a deadlock.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 MESSAGETABLE_EnumerateEntries(
 	_In_		HMESSAGETABLE							hMessageTable,
@@ -185,6 +193,7 @@ MESSAGETABLE_EnumerateEntries(
  *			Free it using ExFreePool.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 MESSAGETABLE_Serialize(
 	_In_													HMESSAGETABLE	hMessageTable,

@@ -11,6 +11,8 @@
 /** Headers *************************************************************/
 #include <ntifs.h>
 
+#include "Util.h"
+
 
 /** Constants ***********************************************************/
 
@@ -52,6 +54,7 @@ typedef HCARPENTER *PHCARPENTER;
  * @returns NTSTATUS
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 CARPENTER_Create(
 	_In_	PVOID		pvImageBase,
@@ -70,6 +73,7 @@ CARPENTER_Create(
  *			undo the patch!
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 VOID
 CARPENTER_Destroy(
 	_In_	HCARPENTER	hCarpenter
@@ -89,6 +93,7 @@ CARPENTER_Destroy(
  *			same ID.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 CARPENTER_StageMessage(
 	_In_	HCARPENTER		hCarpenter,
@@ -107,6 +112,7 @@ CARPENTER_StageMessage(
  *			is not applied.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 CARPENTER_ApplyPatch(
 	_In_	HCARPENTER	hCarpenter

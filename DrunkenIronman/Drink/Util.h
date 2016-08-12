@@ -21,6 +21,14 @@
 #define AUX_KLIB_MODULE_PATH_LEN (256)
 
 
+/** Macros **************************************************************/
+
+/**
+ * Declares a function as residing in the pageable code section.
+ */
+#define PAGEABLE __declspec(code_seg("PAGE"))
+
+
 /** Typedefs ************************************************************/
 
 /**
@@ -61,6 +69,7 @@ typedef struct _AUX_MODULE_EXTENDED_INFO
  * @remark The input buffer may not be null-terminated.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 UTIL_InitUnicodeStringCb(
 	_In_reads_bytes_(cbInputStringMax)	PWCHAR			pwcInputString,
@@ -80,6 +89,7 @@ UTIL_InitUnicodeStringCb(
  * @remark The input buffer may not be null-terminated.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 UTIL_InitUnicodeStringCch(
 	_In_reads_(cchInputStringMax)	PWCHAR			pwcInputString,
@@ -99,6 +109,7 @@ UTIL_InitUnicodeStringCch(
  * @remark The input buffer may not be null-terminated.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 UTIL_InitAnsiStringCb(
 	_In_reads_bytes_(cbInputStringMax)	PCHAR			pcInputString,
@@ -118,6 +129,7 @@ UTIL_InitAnsiStringCb(
  * @remark The input buffer may not be null-terminated.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 UTIL_InitAnsiStringCch(
 	_In_reads_(cchInputStringMax)	PCHAR			pcInputString,
@@ -138,6 +150,7 @@ UTIL_InitAnsiStringCch(
  *			Free it with ExFreePool.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 UTIL_QueryModuleInformation(
 	_Outptr_result_buffer_(*pnModules)	PAUX_MODULE_EXTENDED_INFO *	pptModules,

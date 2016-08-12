@@ -56,6 +56,7 @@ AuxKlibQueryModuleInformation(
 /** Functions ***********************************************************/
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 UTIL_InitUnicodeStringCb(
 	_In_reads_bytes_(cbInputStringMax)	PWCHAR			pwcInputString,
@@ -125,6 +126,7 @@ lblCleanup:
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 UTIL_InitUnicodeStringCch(
 	_In_reads_(cchInputStringMax)	PWCHAR			pwcInputString,
@@ -172,6 +174,7 @@ lblCleanup:
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 UTIL_InitAnsiStringCb(
 	_In_reads_bytes_(cbInputStringMax)	PCHAR			pcInputString,
@@ -241,6 +244,7 @@ lblCleanup:
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 UTIL_InitAnsiStringCch(
 	_In_reads_(cchInputStringMax)	PCHAR			pcInputString,
@@ -288,6 +292,7 @@ lblCleanup:
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 UTIL_QueryModuleInformation(
 	_Outptr_result_buffer_(*pnModules)	PAUX_MODULE_EXTENDED_INFO *	pptModules,

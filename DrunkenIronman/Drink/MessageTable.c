@@ -163,6 +163,7 @@ C_ASSERT(MESSAGE_TABLE_ANSI_STRING_MAX_SIZE > 0);
  */
 _IRQL_requires_max_(APC_LEVEL)
 STATIC
+PAGEABLE
 RTL_GENERIC_COMPARE_RESULTS
 messagetable_CompareRoutine(
 	_In_	PRTL_AVL_TABLE	ptTable,
@@ -206,6 +207,7 @@ messagetable_CompareRoutine(
  */
 _IRQL_requires_max_(APC_LEVEL)
 STATIC
+PAGEABLE
 PVOID
 messagetable_AllocateRoutine(
 	_In_	PRTL_AVL_TABLE	ptTable,
@@ -230,6 +232,7 @@ messagetable_AllocateRoutine(
  */
 _IRQL_requires_max_(APC_LEVEL)
 STATIC
+PAGEABLE
 VOID
 messagetable_FreeRoutine(
 	_In_	PRTL_AVL_TABLE	ptTable,
@@ -254,6 +257,7 @@ messagetable_FreeRoutine(
  */
 _IRQL_requires_max_(APC_LEVEL)
 STATIC
+PAGEABLE
 VOID
 messagetable_ClearEntry(
 	_In_	PMESSAGE_TABLE_ENTRY	ptEntry
@@ -405,6 +409,7 @@ lblCleanup:
  */
 _IRQL_requires_(PASSIVE_LEVEL)
 STATIC
+PAGEABLE
 NTSTATUS
 messagetable_InsertResourceEntryAnsi(
 	_In_	HMESSAGETABLE				hMessageTable,
@@ -470,6 +475,7 @@ lblCleanup:
  */
 _IRQL_requires_(PASSIVE_LEVEL)
 STATIC
+PAGEABLE
 NTSTATUS
 messagetable_InsertResourceEntryUnicode(
 	_In_	HMESSAGETABLE				hMessageTable,
@@ -529,6 +535,7 @@ lblCleanup:
  */
 _IRQL_requires_max_(APC_LEVEL)
 STATIC
+PAGEABLE
 USHORT
 messagetable_SizeofSerializedEntry(
 	_In_	PCMESSAGE_TABLE_ENTRY	ptEntry
@@ -594,6 +601,7 @@ messagetable_SizeofSerializedEntry(
  */
 _IRQL_requires_max_(APC_LEVEL)
 STATIC
+PAGEABLE
 VOID
 messagetable_CountingCallback(
 	_In_		PCMESSAGE_TABLE_ENTRY	ptEntry,
@@ -644,6 +652,7 @@ messagetable_CountingCallback(
  */
 _IRQL_requires_max_(APC_LEVEL)
 STATIC
+PAGEABLE
 VOID
 messagetable_SerializingCallback(
 	_In_		PCMESSAGE_TABLE_ENTRY	ptEntry,
@@ -724,6 +733,7 @@ _When_(bExclusive, _Acquires_exclusive_lock_(ptMessageTable->tLock))
 _When_(!bExclusive, _Acquires_shared_lock_(ptMessageTable->tLock))
 _Acquires_lock_(_Global_critical_region_)
 STATIC
+PAGEABLE
 NTSTATUS
 messagetable_AcquireLock(
 	_In_	PMESSAGE_TABLE	ptMessageTable,
@@ -783,6 +793,7 @@ _IRQL_requires_max_(APC_LEVEL)
 _Releases_lock_(ptMessageTable->tLock)
 _Releases_lock_(_Global_critical_region_)
 STATIC
+PAGEABLE
 VOID
 messagetable_ReleaseLock(
 	_In_	PMESSAGE_TABLE	ptMessageTable
@@ -797,6 +808,7 @@ messagetable_ReleaseLock(
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 MESSAGETABLE_Create(
 	_Out_	PHMESSAGETABLE	phMessageTable
@@ -852,6 +864,7 @@ lblCleanup:
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 MESSAGETABLE_CreateFromResource(
 	_In_reads_bytes_(cbMessageTableResource)	PVOID			pvMessageTableResource,
@@ -939,6 +952,7 @@ lblCleanup:
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 VOID
 MESSAGETABLE_Destroy(
 	_In_	HMESSAGETABLE	hMessageTable
@@ -987,6 +1001,7 @@ lblCleanup:
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 MESSAGETABLE_InsertAnsi(
 	_In_	HMESSAGETABLE	hMessageTable,
@@ -1078,6 +1093,7 @@ lblCleanup:
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 MESSAGETABLE_InsertUnicode(
 	_In_	HMESSAGETABLE		hMessageTable,
@@ -1168,6 +1184,7 @@ lblCleanup:
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 MESSAGETABLE_EnumerateEntries(
 	_In_		HMESSAGETABLE							hMessageTable,
@@ -1235,6 +1252,7 @@ lblCleanup:
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 MESSAGETABLE_Serialize(
 	_In_													HMESSAGETABLE	hMessageTable,

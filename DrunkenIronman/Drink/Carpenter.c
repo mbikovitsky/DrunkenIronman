@@ -11,6 +11,7 @@
 
 #include <Common.h>
 
+#include "Util.h"
 #include "ImageParse.h"
 #include "MessageTable.h"
 
@@ -75,6 +76,7 @@ carpenter_PointerToPathComponent(
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 CARPENTER_Create(
 	_In_	PVOID		pvImageBase,
@@ -144,6 +146,7 @@ lblCleanup:
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 VOID
 CARPENTER_Destroy(
 	_In_	HCARPENTER	hCarpenter
@@ -167,6 +170,7 @@ lblCleanup:
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 CARPENTER_StageMessage(
 	_In_	HCARPENTER		hCarpenter,
@@ -198,6 +202,7 @@ lblCleanup:
 }
 
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 NTSTATUS
 CARPENTER_ApplyPatch(
 	_In_	HCARPENTER	hCarpenter
