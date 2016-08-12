@@ -74,3 +74,24 @@ VOID
 CARPENTER_Destroy(
 	_In_	HCARPENTER	hCarpenter
 );
+
+/**
+ * Stages a message for the patch.
+ *
+ * @param[in]	hCarpenter	A patcher instance.
+ * @param[in]	nMessageId	The ID for the message being staged.
+ * @param[in]	psMessage	The message string.
+ *
+ * @returns NTSTATUS
+ *
+ * @remark	The staged message overwrites
+ *			any previous message with the
+ *			same ID.
+ */
+_IRQL_requires_(PASSIVE_LEVEL)
+NTSTATUS
+CARPENTER_StageMessage(
+	_In_	HCARPENTER		hCarpenter,
+	_In_	ULONG			nMessageId,
+	_In_	PCANSI_STRING	psMessage
+);

@@ -32,8 +32,8 @@
  */
 typedef struct _CARPENTER
 {
-	PVOID			pvResourceDirectory;
-	ULONG			cbResourceDirectory;
+	PVOID			pvInImageMessageTable;
+	ULONG			cbInImageMessageTable;
 	HMESSAGETABLE	hMessageTable;
 } CARPENTER, *PCARPENTER;
 typedef CONST CARPENTER *PCCARPENTER;
@@ -115,15 +115,15 @@ CARPENTER_Create(
 	eStatus = IMAGEPARSE_FindResource(pvImageBase,
 									  atPath,
 									  ARRAYSIZE(atPath),
-									  &(ptCarpenter->pvResourceDirectory),
-									  &(ptCarpenter->cbResourceDirectory));
+									  &(ptCarpenter->pvInImageMessageTable),
+									  &(ptCarpenter->cbInImageMessageTable));
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
 	}
 
-	eStatus = MESSAGETABLE_CreateFromResource(ptCarpenter->pvResourceDirectory,
-											  ptCarpenter->cbResourceDirectory,
+	eStatus = MESSAGETABLE_CreateFromResource(ptCarpenter->pvInImageMessageTable,
+											  ptCarpenter->cbInImageMessageTable,
 											  &(ptCarpenter->hMessageTable));
 	if (!NT_SUCCESS(eStatus))
 	{
@@ -164,4 +164,35 @@ CARPENTER_Destroy(
 
 lblCleanup:
 	return;
+}
+
+_IRQL_requires_(PASSIVE_LEVEL)
+NTSTATUS
+CARPENTER_StageMessage(
+	_In_	HCARPENTER		hCarpenter,
+	_In_	ULONG			nMessageId,
+	_In_	PCANSI_STRING	psMessage
+)
+{
+	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
+	PCARPENTER	ptCarpenter	= (PCARPENTER)hCarpenter;
+
+	PAGED_CODE();
+
+	if ((NULL == hCarpenter) ||
+		(NULL == psMessage) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	eStatus = MESSAGETABLE_InsertAnsi(ptCarpenter->hMessageTable,
+									  nMessageId,
+									  psMessage);
+
+	// Keep last status
+
+lblCleanup:
+	return eStatus;
 }
