@@ -135,9 +135,6 @@ driver_CompleteRequest(
 	ptIrp->IoStatus.Information = pvInformation;
 	IoCompleteRequest(ptIrp, ePriorityBoost);
 	ptIrp = NULL;
-
-lblCleanup:
-	return;
 }
 
 /**
@@ -174,6 +171,29 @@ driver_DispatchCreateClose(
 }
 
 /**
+ * Handles IOCTL_DRINK_BUGSHOT.
+ *
+ * @returns NTSTATUS
+ */
+_IRQL_requires_max_(DISPATCH_LEVEL)
+STATIC
+NTSTATUS
+driver_HandleBugshot(VOID)
+{
+	NTSTATUS	eStatus	= STATUS_UNSUCCESSFUL;
+
+	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
+
+	eStatus = VGADUMP_Initialize();
+	g_bVgaDumpInitialized = NT_SUCCESS(eStatus);
+
+	// Keep last status
+
+//lblCleanup:
+	return eStatus;
+}
+
+/**
  * Handler for IRP_MJ_DEVICE_CONTROL requests.
  *
  * @param[in]	ptDeviceObject	The device object.
@@ -206,13 +226,7 @@ driver_DispatchDeviceControl(
 	switch (ptStackLocation->Parameters.DeviceIoControl.IoControlCode)
 	{
 	case IOCTL_DRINK_BUGSHOT:
-		eStatus = VGADUMP_Initialize();
-		if (!NT_SUCCESS(eStatus))
-		{
-			goto lblCleanup;
-		}
-		g_bVgaDumpInitialized = TRUE;
-
+		eStatus = driver_HandleBugshot();
 		break;
 
 	default:
@@ -222,7 +236,7 @@ driver_DispatchDeviceControl(
 
 	// Keep last status
 
-lblCleanup:
+//lblCleanup:
 	COMPLETE_IRP(ptIrp, eStatus, 0, IO_NO_INCREMENT);
 	return eStatus;
 }
