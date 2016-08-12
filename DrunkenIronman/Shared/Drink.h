@@ -62,6 +62,15 @@ EXTERN_C CONST GUID DECLSPEC_SELECTANY g_tVgaDumpGuid =
 #define IOCTL_DRINK_BUGSHOT \
 	(CTL_CODE(DRINK_DEVICE_TYPE, 0x800, METHOD_BUFFERED, FILE_ANY_ACCESS))
 
+/**
+ * IOCTL for setting-up a vanity bugcheck.
+ *
+ * Input:	ANSI string with the custom bugcheck string.
+ * Output:	None.
+ */
+#define IOCTL_DRINK_VANITY \
+	(CTL_CODE(DRINK_DEVICE_TYPE, 0x801, METHOD_BUFFERED, FILE_ANY_ACCESS))
+
 
 /** Typedefs ************************************************************/
 

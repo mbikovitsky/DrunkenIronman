@@ -56,6 +56,18 @@ typedef enum _SUBFUNCTION_CONVERT_ARGS
 	SUBFUNCTION_CONVERT_ARGS_COUNT
 } SUBFUNCTION_CONVERT_ARGS, *PSUBFUNCTION_CONVERT_ARGS;
 
+/**
+ * Command line argument positions for the "vanity" subfunction.
+ */
+typedef enum _SUBFUNCTION_VANITY_ARGS
+{
+	// The string to display on the BSoD.
+	SUBFUNCTION_VANITY_ARG_STRING = 0,
+
+	// Must be last:
+	SUBFUNCTION_VANITY_ARGS_COUNT
+} SUBFUNCTION_VANITY_ARGS, *PSUBFUNCTION_VANITY_ARGS;
+
 
 /** Typedefs ************************************************************/
 
@@ -216,6 +228,25 @@ main_HandleUnload(
 STATIC
 HRESULT
 main_HandleBugshot(
+	_In_					INT				nArguments,
+	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
+);
+
+/**
+ * Handler for the "vanity" subfunction.
+ * Instructs the driver to set a custom bugcheck
+ * message and then crash the system.
+ *
+ * @param[in]	nArguments		Number of command line arguments.
+ * @param[in]	ppwszArguments	The command line arguments.
+ *
+ * @returns HRESULT
+ *
+ * @see SUBFUNCTION_VANITY_ARGS
+ */
+STATIC
+HRESULT
+main_HandleVanity(
 	_In_					INT				nArguments,
 	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
 );

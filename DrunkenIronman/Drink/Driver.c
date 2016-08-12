@@ -12,7 +12,9 @@
 #include <Common.h>
 #include <Drink.h>
 
+#include "Util.h"
 #include "VgaDump.h"
+#include "Carpenter.h"
 
 
 /** Macros **************************************************************/
@@ -194,6 +196,100 @@ driver_HandleBugshot(VOID)
 }
 
 /**
+ * Handles IOCTL_DRINK_VANITY.
+ *
+ * @param[in]	pvInputBuffer	The IOCTLs input buffer.
+ * @param[in]	cbInputBuffer	Size of the input buffer, in bytes.
+ *
+ * @returns NTSTATUS
+ *
+ * @remark This function returns only on failure.
+ */
+_IRQL_requires_max_(DISPATCH_LEVEL)
+STATIC
+NTSTATUS
+driver_HandleVanity(
+	_In_	PVOID	pvInputBuffer,
+	_In_	ULONG	cbInputBuffer
+)
+{
+	NTSTATUS					eStatus			= STATUS_UNSUCCESSFUL;
+	ANSI_STRING					sInputString	= { 0 };
+	PAUX_MODULE_EXTENDED_INFO	ptModules		= NULL;
+	ULONG						nModules		= 0;
+	HCARPENTER					hCarpenter		= NULL;
+
+	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
+
+	// We can't actually run above PASSIVE_LEVEL.
+	if ((NULL == pvInputBuffer) ||
+		(0 == cbInputBuffer) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	// Prepare the caller-supplied string.
+	eStatus = UTIL_InitAnsiStringCb((PCHAR)pvInputBuffer,
+									cbInputBuffer,
+									&sInputString);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Obtain a list of loaded drivers.
+	eStatus = UTIL_QueryModuleInformation(&ptModules, &nModules);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Prepare to patch the message table of ntoskrnl.exe.
+	eStatus = CARPENTER_Create(ptModules[0].tBasicInfo.pvImageBase,
+							   RT_MESSAGETABLE,
+							   1,
+							   MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
+							   &hCarpenter);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Insert the caller-supplied message.
+	eStatus = CARPENTER_StageMessage(hCarpenter,
+									 DRIVER_IRQL_NOT_LESS_OR_EQUAL,
+									 &sInputString);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Patch!
+	eStatus = CARPENTER_ApplyPatch(hCarpenter);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Goodbye.
+	(VOID)KeRaiseIrqlToDpcLevel();
+	*(volatile UCHAR *)NULL = 0;
+
+	// Unreachable.
+	KeBugCheck(MANUALLY_INITIATED_CRASH1);
+
+	// Really unreachable.
+
+lblCleanup:
+	CLOSE(hCarpenter, CARPENTER_Destroy);
+	CLOSE(ptModules, ExFreePool);
+
+	return eStatus;
+}
+
+/**
  * Handler for IRP_MJ_DEVICE_CONTROL requests.
  *
  * @param[in]	ptDeviceObject	The device object.
@@ -227,6 +323,12 @@ driver_DispatchDeviceControl(
 	{
 	case IOCTL_DRINK_BUGSHOT:
 		eStatus = driver_HandleBugshot();
+		break;
+
+	case IOCTL_DRINK_VANITY:
+		eStatus = driver_HandleVanity(ptIrp->AssociatedIrp.SystemBuffer,
+									  ptStackLocation->Parameters.DeviceIoControl.InputBufferLength);
+		ASSERT(!NT_SUCCESS(eStatus));	// The above call returns only on failure.
 		break;
 
 	default:

@@ -8,6 +8,7 @@
 
 /** Headers *************************************************************/
 #include <Windows.h>
+#include <intsafe.h>
 
 #include <assert.h>
 #include <string.h>
@@ -46,6 +47,11 @@ STATIC CONST SUBFUNCTION_HANDLER_ENTRY g_atSubfunctionHandlers[] = {
 	{
 		L"bugshot",
 		&main_HandleBugshot
+	},
+
+	{
+		L"vanity",
+		&main_HandleVanity
 	},
 };
 
@@ -328,6 +334,79 @@ main_HandleBugshot(
 	hrResult = S_OK;
 
 lblCleanup:
+	return hrResult;
+}
+
+STATIC
+HRESULT
+main_HandleVanity(
+	_In_					INT				nArguments,
+	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
+)
+{
+	HRESULT	hrResult	= E_FAIL;
+	PCWSTR	pwszInput	= NULL;
+	INT		cbReturned	= 0;
+	DWORD	cbInput		= 0;
+	PSTR	pszInput	= NULL;
+
+	if (SUBFUNCTION_VANITY_ARGS_COUNT != nArguments)
+	{
+		hrResult = E_INVALIDARG;
+		goto lblCleanup;
+	}
+
+	pwszInput = ppwszArguments[SUBFUNCTION_VANITY_ARG_STRING];
+	assert(NULL != pwszInput);
+
+	cbReturned = WideCharToMultiByte(CP_ACP,
+									 WC_NO_BEST_FIT_CHARS,
+									 pwszInput, -1,
+									 NULL, 0,
+									 "_",
+									 NULL);
+	if (0 == cbReturned)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	hrResult = IntToDWord(cbReturned, &cbInput);
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	pszInput = HEAPALLOC(cbInput);
+	if (NULL == pszInput)
+	{
+		hrResult = E_OUTOFMEMORY;
+		goto lblCleanup;
+	}
+
+	cbReturned = WideCharToMultiByte(CP_ACP,
+									 WC_NO_BEST_FIT_CHARS,
+									 pwszInput, -1,
+									 pszInput, (INT)cbInput,
+									 "_",
+									 NULL);
+	if (0 == cbReturned)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_VANITY, pszInput, cbInput);
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	hrResult = S_OK;
+
+lblCleanup:
+	HEAPFREE(pszInput);
+
 	return hrResult;
 }
 
