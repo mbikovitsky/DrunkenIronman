@@ -109,12 +109,17 @@ main_VgaDumpToBitmap(
 	DWORD		nCurrentPlane	= 0;
 	BYTE		nCurrentBit		= 0;
 
+	PROGRESS("Converting raw VGA dump to BMP...");
+
 	ptBitmap = HEAPALLOC(sizeof(*ptBitmap));
 	if (NULL == ptBitmap)
 	{
+		PROGRESS("Oops. Ran out of memory.");
 		hrResult = E_OUTOFMEMORY;
 		goto lblCleanup;
 	}
+
+	PROGRESS("Writing the BMP header.");
 
 	// Initialize the file header
 	ptBitmap->tFileHeader.bfType = 'MB';
@@ -131,6 +136,7 @@ main_VgaDumpToBitmap(
 	ptBitmap->tInfoHeader.biCompression = BI_RGB;
 
 	// Initialize the color palette
+	PROGRESS("Writing the palette.");
 	for (nCurrentEntry = 0;
 		 nCurrentEntry < ARRAYSIZE(ptBitmap->atColors);
 		 ++nCurrentEntry)
@@ -141,6 +147,7 @@ main_VgaDumpToBitmap(
 	}
 
 	// Set the pixel values
+	PROGRESS("Writing the pixel data.");
 	for (nCurrentPixel = 0;
 		 nCurrentPixel < ARRAYSIZE(ptBitmap->anPixels);
 		 ++nCurrentPixel)
@@ -190,14 +197,17 @@ main_HandleConvert(
 	{
 	case SUBFUNCTION_CONVERT_NO_INPUT_ARGS_COUNT:
 		pwszOutputPath = ppwszArguments[SUBFUNCTION_CONVERT_NO_INPUT_ARG_OUTPUT];
+		PROGRESS("Converting system memory dump to '%S'.", pwszOutputPath);
 		break;
 
 	case SUBFUNCTION_CONVERT_ARGS_COUNT:
 		pwszDumpPath = ppwszArguments[SUBFUNCTION_CONVERT_ARG_INPUT];
 		pwszOutputPath = ppwszArguments[SUBFUNCTION_CONVERT_ARG_OUTPUT];
+		PROGRESS("Converting dump '%S' to '%S'.", pwszDumpPath, pwszOutputPath);
 		break;
 
 	default:
+		PROGRESS("Invalid number of arguments specified.");
 		hrResult = E_INVALIDARG;
 		goto lblCleanup;
 	}
@@ -205,6 +215,7 @@ main_HandleConvert(
 	hrResult = DUMPPARSE_Open(pwszDumpPath, &hDump);
 	if (FAILED(hrResult))
 	{
+		PROGRESS("Failed opening the dump file.");
 		goto lblCleanup;
 	}
 
@@ -214,10 +225,12 @@ main_HandleConvert(
 									&cbDump);
 	if (FAILED(hrResult))
 	{
+		PROGRESS("Failed reading saved bugcheck screenshot. Did you save it?");
 		goto lblCleanup;
 	}
 	if (sizeof(*ptDump) != cbDump)
 	{
+		PROGRESS("The stored screenshot has a weird size.");
 		hrResult = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
 		goto lblCleanup;
 	}
@@ -225,6 +238,7 @@ main_HandleConvert(
 	hrResult = main_VgaDumpToBitmap(ptDump, &ptBitmap);
 	if (FAILED(hrResult))
 	{
+		PROGRESS("Failed converting raw VGA dump to BMP.");
 		goto lblCleanup;
 	}
 
@@ -237,6 +251,7 @@ main_HandleConvert(
 							  NULL);
 	if (INVALID_HANDLE_VALUE == hOutputFile)
 	{
+		PROGRESS("Failed creating the output file.");
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
 		goto lblCleanup;
 	}
@@ -247,11 +262,13 @@ main_HandleConvert(
 				   &cbWritten,
 				   NULL))
 	{
+		PROGRESS("Failed writing to the output file.");
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
 		goto lblCleanup;
 	}
 	if (sizeof(*ptBitmap) != cbWritten)
 	{
+		PROGRESS("Not all data written to the output file. Strange...");
 		hrResult = E_UNEXPECTED;
 		goto lblCleanup;
 	}
@@ -279,9 +296,12 @@ main_HandleLoad(
 	UNREFERENCED_PARAMETER(nArguments);
 	UNREFERENCED_PARAMETER(ppwszArguments);
 
+	PROGRESS("Loading the driver...");
+
 	hrResult = DRINKCONTROL_LoadDriver();
 	if (FAILED(hrResult))
 	{
+		PROGRESS("Failed loading the driver.");
 		goto lblCleanup;
 	}
 
@@ -303,9 +323,12 @@ main_HandleUnload(
 	UNREFERENCED_PARAMETER(nArguments);
 	UNREFERENCED_PARAMETER(ppwszArguments);
 
+	PROGRESS("Unloading the driver...");
+
 	hrResult = DRINKCONTROL_UnloadDriver();
 	if (FAILED(hrResult))
 	{
+		PROGRESS("Failed unloading the driver.");
 		goto lblCleanup;
 	}
 
@@ -327,10 +350,13 @@ main_HandleBugshot(
 	UNREFERENCED_PARAMETER(nArguments);
 	UNREFERENCED_PARAMETER(ppwszArguments);
 
+	PROGRESS("Registering callback to take a bugcheck snapshot.");
+
 	hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_BUGSHOT,
 										  NULL, 0);
 	if (FAILED(hrResult))
 	{
+		PROGRESS("Failed registering for snapshot.");
 		goto lblCleanup;
 	}
 
@@ -355,12 +381,15 @@ main_HandleVanity(
 
 	if (SUBFUNCTION_VANITY_ARGS_COUNT != nArguments)
 	{
+		PROGRESS("Invalid number of arguments specified.");
 		hrResult = E_INVALIDARG;
 		goto lblCleanup;
 	}
 
 	pwszInput = ppwszArguments[SUBFUNCTION_VANITY_ARG_STRING];
 	assert(NULL != pwszInput);
+
+	PROGRESS("About to crash system with string: '%S'.", pwszInput);
 
 	// Calculate the length of the formatted string.
 	hrResult = IntToDWord(_scprintf(VANITY_FORMAT_STRING, pwszInput),
@@ -390,6 +419,7 @@ main_HandleVanity(
 	pszFormatted = HEAPALLOC(cbFormatted);
 	if (NULL == pszFormatted)
 	{
+		PROGRESS("Oops. Ran out of memory.");
 		hrResult = E_OUTOFMEMORY;
 		goto lblCleanup;
 	}
@@ -405,6 +435,7 @@ main_HandleVanity(
 	}
 
 	// Adventure time.
+	PROGRESS("Adventure time.");
 	hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_VANITY, pszFormatted, cbFormatted);
 	if (FAILED(hrResult))
 	{
@@ -416,6 +447,7 @@ main_HandleVanity(
 lblCleanup:
 	HEAPFREE(pszFormatted);
 
+	PROGRESS("Returning 0x%lX", hrResult);
 	return hrResult;
 }
 
@@ -448,9 +480,12 @@ wmain(
 
 	if (CMD_ARGS_COUNT > nArguments)
 	{
+		PROGRESS("Invalid number of arguments specified.");
 		hrResult = E_INVALIDARG;
 		goto lblCleanup;
 	}
+
+	PROGRESS("Selected subfunction: '%S'.", ppwszArguments[CMD_ARG_SUBFUNCTION]);
 
 	for (nIndex = 0;
 		 nIndex < ARRAYSIZE(g_atSubfunctionHandlers);
@@ -467,12 +502,17 @@ wmain(
 	}
 	if (NULL == pfnHandler)
 	{
+		PROGRESS("Subfunction not recognized.");
 		hrResult = E_INVALIDARG;
 		goto lblCleanup;
 	}
 
 	hrResult = pfnHandler(nArguments - CMD_ARGS_COUNT,
 						  ppwszArguments + CMD_ARGS_COUNT);
+	if (FAILED(hrResult))
+	{
+		PROGRESS("Subfunction handler failed with code 0x%08lX.", hrResult);
+	}
 
 	// Keep last status
 
@@ -482,6 +522,5 @@ lblCleanup:
 		DEBUG_Shutdown();
 		bDebuggingInitialized = FALSE;
 	}
-
 	return (INT)hrResult;
 }
