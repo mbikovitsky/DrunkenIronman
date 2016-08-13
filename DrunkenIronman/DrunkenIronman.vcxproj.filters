@@ -1,0 +1,68 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Util">
+      <UniqueIdentifier>{552296db-0d26-405c-a6c3-f03beee73e45}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DumpParse">
+      <UniqueIdentifier>{03ea08ce-870f-483f-8203-534f9ef64292}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Main">
+      <UniqueIdentifier>{1bbcd625-b6f1-477a-854c-d36619d685df}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{2469b910-abd8-498a-ad07-2dbe290580c1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DrinkControl">
+      <UniqueIdentifier>{80f419ea-8d20-4052-8321-7ddcd78e3acd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Debug">
+      <UniqueIdentifier>{3ee48d00-6e93-4e30-9cb6-efb1c62392f3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Util.c">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="DumpParse.c">
+      <Filter>DumpParse</Filter>
+    </ClCompile>
+    <ClCompile Include="DbgEngGuids.c">
+      <Filter>DumpParse</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.c">
+      <Filter>Main</Filter>
+    </ClCompile>
+    <ClCompile Include="DrinkControl.c">
+      <Filter>DrinkControl</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug.c">
+      <Filter>Debug</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Util.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="DumpParse.h">
+      <Filter>DumpParse</Filter>
+    </ClInclude>
+    <ClInclude Include="Main_Internal.h">
+      <Filter>Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="DrinkControl.h">
+      <Filter>DrinkControl</Filter>
+    </ClInclude>
+    <ClInclude Include="Debug.h">
+      <Filter>Debug</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc">
+      <Filter>Resources</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>

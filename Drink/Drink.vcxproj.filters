@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Driver">
+      <UniqueIdentifier>{45812714-30ac-461f-ac44-724c4f854ba0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="VgaDump">
+      <UniqueIdentifier>{2d18c3e2-567f-4d3c-bf23-a0391bf455cf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MessageTable">
+      <UniqueIdentifier>{5e7abd98-19bb-4cee-9c96-afae4fd7ca57}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ImageParse">
+      <UniqueIdentifier>{ae2f0c31-4126-436f-86ea-5393548fe9d6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Util">
+      <UniqueIdentifier>{1a568b32-cad9-4a38-9477-333833a33cce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Carpenter">
+      <UniqueIdentifier>{fce9c2bb-c5d4-463a-a58f-9c9d6830e159}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Driver.c">
+      <Filter>Driver</Filter>
+    </ClCompile>
+    <ClCompile Include="VgaDump.c">
+      <Filter>VgaDump</Filter>
+    </ClCompile>
+    <ClCompile Include="MessageTable.c">
+      <Filter>MessageTable</Filter>
+    </ClCompile>
+    <ClCompile Include="ImageParse.c">
+      <Filter>ImageParse</Filter>
+    </ClCompile>
+    <ClCompile Include="Util.c">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Carpenter.c">
+      <Filter>Carpenter</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="VgaDump.h">
+      <Filter>VgaDump</Filter>
+    </ClInclude>
+    <ClInclude Include="MessageTable.h">
+      <Filter>MessageTable</Filter>
+    </ClInclude>
+    <ClInclude Include="ImageParse.h">
+      <Filter>ImageParse</Filter>
+    </ClInclude>
+    <ClInclude Include="Util.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Carpenter.h">
+      <Filter>Carpenter</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
