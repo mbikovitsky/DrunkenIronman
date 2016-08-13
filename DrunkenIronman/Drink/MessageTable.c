@@ -1184,6 +1184,62 @@ lblCleanup:
 _IRQL_requires_(PASSIVE_LEVEL)
 PAGEABLE
 NTSTATUS
+MESSAGETABLE_GetEntry(
+	_In_		HMESSAGETABLE			hMessageTable,
+	_In_		ULONG					nEntryId,
+	_Outptr_	PCMESSAGE_TABLE_ENTRY *	pptEntry
+)
+{
+	NTSTATUS				eStatus			= STATUS_UNSUCCESSFUL;
+	PMESSAGE_TABLE			ptMessageTable	= (PMESSAGE_TABLE)hMessageTable;
+	BOOLEAN					bLockAcquired	= FALSE;
+	MESSAGE_TABLE_ENTRY		tDummyEntry		= { 0 };
+	PCMESSAGE_TABLE_ENTRY	ptEntry			= NULL;
+
+	PAGED_CODE();
+
+	if ((NULL == hMessageTable) ||
+		(NULL == pptEntry) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	eStatus = messagetable_AcquireLock(ptMessageTable, FALSE);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	tDummyEntry.nEntryId = nEntryId;
+	ptEntry =
+		(PCMESSAGE_TABLE_ENTRY)RtlLookupElementGenericTableAvl(&(ptMessageTable->tTable),
+															   &tDummyEntry);
+	if (NULL == ptEntry)
+	{
+		eStatus = STATUS_NOT_FOUND;
+		goto lblCleanup;
+	}
+
+	// Return results:
+	*pptEntry = ptEntry;
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	if (bLockAcquired)
+	{
+		messagetable_ReleaseLock(ptMessageTable);
+		bLockAcquired = FALSE;
+	}
+
+	return eStatus;
+}
+
+_IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
+NTSTATUS
 MESSAGETABLE_EnumerateEntries(
 	_In_		HMESSAGETABLE							hMessageTable,
 	_In_		PFN_MESSAGETABLE_ENUMERATION_CALLBACK	pfnCallback,

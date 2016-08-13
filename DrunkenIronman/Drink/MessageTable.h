@@ -42,10 +42,11 @@ typedef CONST MESSAGE_TABLE_ENTRY *PCMESSAGE_TABLE_ENTRY;
  * Callback used when enumerating message table entries.
  *
  * @param[in]	ptEntry					Entry currently being enumerated.
- *										The entry and its contents SHOULD NOT
+ *										The entry and its contents MUST NOT
  *										be modified by the callback.
  * @param[in]	ptPreviousEntry			Previous entry, or NULL if this is the first
- *										invocation of the callback.
+ *										invocation of the callback. The callback MUST
+ *										NOT modify the entry or its contents.
  * @param[in]	pvContext				Context specified when invoking the enumeration
  *										function.
  * @param[out]	pbContinueEnumeration	The callback should set this to FALSE to
@@ -151,6 +152,27 @@ MESSAGETABLE_InsertUnicode(
 	_In_	HMESSAGETABLE		hMessageTable,
 	_In_	ULONG				nEntryId,
 	_In_	PCUNICODE_STRING	pusString
+);
+
+/**
+ * Retrieves an entry with the specified ID.
+ *
+ * @param[in]	hMessageTable	Message table to search for the entry.
+ * @param[in]	nEntryId		ID of the entry to look up.
+ * @param[out]	pptEntry		Will receive a pointer to the found entry.
+ *
+ * @returns NTSTATUS
+ *
+ * @remark	The entry and its contents MUST NOT
+ *			be modified by the calling code.
+ */
+_IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
+NTSTATUS
+MESSAGETABLE_GetEntry(
+	_In_		HMESSAGETABLE			hMessageTable,
+	_In_		ULONG					nEntryId,
+	_Outptr_	PCMESSAGE_TABLE_ENTRY *	pptEntry
 );
 
 /**
