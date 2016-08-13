@@ -121,33 +121,16 @@ typedef CONST SERIALIZING_CALLBACK_CONTEXT *PCSERIALIZING_CALLBACK_CONTEXT;
 	(ALIGN_DOWN_BY(MAXUSHORT, __alignof(MESSAGE_RESOURCE_ENTRY)))
 
 /**
- * Maximum size, in bytes, of a Unicode string that
- * can be stored in a message table. The size is
- * constrained by the ability to serialize the string
- * into a MESSAGE_RESOURCE_ENTRY.
- *
- * @remark	A valid UNICODE_STRING may actually be shorter
- *			than the size defined here.
- *			This is validated via messagetable_IsValidUnicodeString.
- *
- * @see MESSAGE_RESOURCE_ENTRY.
- * @see messagetable_IsValidUnicodeString.
- */
-#define MESSAGE_TABLE_UNICODE_STRING_MAX_SIZE \
-	(MESSAGE_RESOURCE_ENTRY_MAX_SIZE - UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText) - sizeof(UNICODE_NULL))
-C_ASSERT(MESSAGE_TABLE_UNICODE_STRING_MAX_SIZE > 0);
-
-/**
- * Maximum size, in bytes, of an ANSI string that
+ * Maximum size, in bytes, of a string that
  * can be stored in a message table. The size is
  * constrained by the ability to serialize the string
  * into a MESSAGE_RESOURCE_ENTRY.
  *
  * @see MESSAGE_RESOURCE_ENTRY.
  */
-#define MESSAGE_TABLE_ANSI_STRING_MAX_SIZE \
-	(MESSAGE_RESOURCE_ENTRY_MAX_SIZE - UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText) - sizeof(ANSI_NULL))
-C_ASSERT(MESSAGE_TABLE_ANSI_STRING_MAX_SIZE > 0);
+#define MESSAGE_TABLE_STRING_MAX_SIZE \
+	(MESSAGE_RESOURCE_ENTRY_MAX_SIZE - UFIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, acText))
+C_ASSERT(MESSAGE_TABLE_STRING_MAX_SIZE > 0);
 
 
 /** Functions ***********************************************************/
@@ -296,13 +279,17 @@ lblCleanup:
  * is valid for use in a message table.
  *
  * @param[in]	psString	String to check.
+ * @param[in]	bCompact	Indicates whether the string
+ *							will be compacted on insertion
+ *							into the table.
  *
  * @returns BOOLEAN
  */
 STATIC
 BOOLEAN
 messagetable_IsValidAnsiString(
-	_In_opt_	PCANSI_STRING	psString
+	_In_opt_	PCANSI_STRING	psString,
+	_In_		BOOLEAN			bCompact
 )
 {
 	BOOLEAN	bIsValid	= FALSE;
@@ -328,9 +315,21 @@ messagetable_IsValidAnsiString(
 		goto lblCleanup;
 	}
 
-	if (psString->Length > MESSAGE_TABLE_ANSI_STRING_MAX_SIZE)
+	if (bCompact)
 	{
-		goto lblCleanup;
+		C_ASSERT(MESSAGE_TABLE_STRING_MAX_SIZE - sizeof(ANSI_NULL) > 0);
+
+		if (psString->Length > MESSAGE_TABLE_STRING_MAX_SIZE - sizeof(ANSI_NULL))
+		{
+			goto lblCleanup;
+		}
+	}
+	else
+	{
+		if (psString->MaximumLength > MESSAGE_TABLE_STRING_MAX_SIZE)
+		{
+			goto lblCleanup;
+		}
 	}
 
 	bIsValid = TRUE;
@@ -344,13 +343,17 @@ lblCleanup:
  * is valid for use in a message table.
  *
  * @param[in]	pusString	String to check.
+ * @param[in]	bCompact	Indicates whether the string
+ *							will be compacted on insertion
+ *							into the table.
  *
  * @returns BOOLEAN
  */
 STATIC
 BOOLEAN
 messagetable_IsValidUnicodeString(
-	_In_opt_	PCUNICODE_STRING	pusString
+	_In_opt_	PCUNICODE_STRING	pusString,
+	_In_		BOOLEAN				bCompact
 )
 {
 	BOOLEAN	bIsValid	= FALSE;
@@ -382,9 +385,21 @@ messagetable_IsValidUnicodeString(
 		goto lblCleanup;
 	}
 
-	if (pusString->Length > MESSAGE_TABLE_UNICODE_STRING_MAX_SIZE)
+	if (bCompact)
 	{
-		goto lblCleanup;
+		C_ASSERT(MESSAGE_TABLE_STRING_MAX_SIZE - sizeof(UNICODE_NULL) > 0);
+
+		if (pusString->Length > MESSAGE_TABLE_STRING_MAX_SIZE - sizeof(UNICODE_NULL))
+		{
+			goto lblCleanup;
+		}
+	}
+	else
+	{
+		if (pusString->MaximumLength > MESSAGE_TABLE_STRING_MAX_SIZE)
+		{
+			goto lblCleanup;
+		}
 	}
 
 	bIsValid = TRUE;
@@ -400,6 +415,8 @@ lblCleanup:
  * @param[in]	hMessageTable	Message table to insert into.
  * @param[in]	nEntryId		ID of the string to insert.
  * @param[in]	ptResourceEntry	The resource entry.
+ * @param[in]	bCompact		Indicates whether the entry
+ *								should be compacted.
  *
  * @returns NTSTATUS
  *
@@ -414,7 +431,8 @@ NTSTATUS
 messagetable_InsertResourceEntryAnsi(
 	_In_	HMESSAGETABLE				hMessageTable,
 	_In_	ULONG						nEntryId,
-	_In_	PCMESSAGE_RESOURCE_ENTRY	ptResourceEntry
+	_In_	PCMESSAGE_RESOURCE_ENTRY	ptResourceEntry,
+	_In_	BOOLEAN						bCompact
 )
 {
 	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
@@ -447,7 +465,8 @@ messagetable_InsertResourceEntryAnsi(
 
 	eStatus = MESSAGETABLE_InsertAnsi(hMessageTable,
 									  nEntryId,
-									  &sString);
+									  &sString,
+									  bCompact);
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
@@ -466,6 +485,8 @@ lblCleanup:
  * @param[in]	hMessageTable	Message table to insert into.
  * @param[in]	nEntryId		ID of the string to insert.
  * @param[in]	ptResourceEntry	The resource entry.
+ * @param[in]	bCompact		Indicates whether the entry
+ *								should be compacted.
  *
  * @returns NTSTATUS
  *
@@ -480,7 +501,8 @@ NTSTATUS
 messagetable_InsertResourceEntryUnicode(
 	_In_	HMESSAGETABLE				hMessageTable,
 	_In_	ULONG						nEntryId,
-	_In_	PCMESSAGE_RESOURCE_ENTRY	ptResourceEntry
+	_In_	PCMESSAGE_RESOURCE_ENTRY	ptResourceEntry,
+	_In_	BOOLEAN						bCompact
 )
 {
 	NTSTATUS		eStatus		= STATUS_UNSUCCESSFUL;
@@ -513,7 +535,8 @@ messagetable_InsertResourceEntryUnicode(
 
 	eStatus = MESSAGETABLE_InsertUnicode(hMessageTable,
 										 nEntryId,
-										 &usString);
+										 &usString,
+										 bCompact);
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
@@ -555,24 +578,14 @@ messagetable_SizeofSerializedEntry(
 	if (ptEntry->bUnicode)
 	{
 		eStatus = RtlUShortAdd(cbTotal,
-							   ptEntry->tData.tUnicode.Length,
-							   &cbTotal);
-		ASSERT(NT_SUCCESS(eStatus));
-
-		eStatus = RtlUShortAdd(cbTotal,
-							   sizeof(UNICODE_NULL),
+							   ptEntry->tData.tUnicode.MaximumLength,
 							   &cbTotal);
 		ASSERT(NT_SUCCESS(eStatus));
 	}
 	else
 	{
 		eStatus = RtlUShortAdd(cbTotal,
-							   ptEntry->tData.tAnsi.Length,
-							   &cbTotal);
-		ASSERT(NT_SUCCESS(eStatus));
-
-		eStatus = RtlUShortAdd(cbTotal,
-							   sizeof(ANSI_NULL),
+							   ptEntry->tData.tAnsi.MaximumLength,
 							   &cbTotal);
 		ASSERT(NT_SUCCESS(eStatus));
 	}
@@ -866,6 +879,7 @@ NTSTATUS
 MESSAGETABLE_CreateFromResource(
 	_In_reads_bytes_(cbMessageTableResource)	PVOID			pvMessageTableResource,
 	_In_										ULONG			cbMessageTableResource,
+	_In_										BOOLEAN			bCompact,
 	_Out_										PHMESSAGETABLE	phMessageTable
 )
 {
@@ -909,14 +923,16 @@ MESSAGETABLE_CreateFromResource(
 				// This is a Unicode string.
 				eStatus = messagetable_InsertResourceEntryUnicode(hMessageTable,
 																  nCurrentId,
-																  ptCurrentEntry);
+																  ptCurrentEntry,
+																  bCompact);
 			}
 			else if (0 == ptCurrentEntry->fFlags)
 			{
 				// This is an ANSI string.
 				eStatus = messagetable_InsertResourceEntryAnsi(hMessageTable,
 															   nCurrentId,
-															   ptCurrentEntry);
+															   ptCurrentEntry,
+															   bCompact);
 			}
 			else
 			{
@@ -1001,7 +1017,8 @@ NTSTATUS
 MESSAGETABLE_InsertAnsi(
 	_In_	HMESSAGETABLE	hMessageTable,
 	_In_	ULONG			nEntryId,
-	_In_	PCANSI_STRING	psString
+	_In_	PCANSI_STRING	psString,
+	_In_	BOOLEAN			bCompact
 )
 {
 	NTSTATUS				eStatus				= STATUS_UNSUCCESSFUL;
@@ -1015,7 +1032,7 @@ MESSAGETABLE_InsertAnsi(
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
-		(!messagetable_IsValidAnsiString(psString)))
+		(!messagetable_IsValidAnsiString(psString, bCompact)))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -1028,25 +1045,33 @@ MESSAGETABLE_InsertAnsi(
 	}
 	bLockAcquired = TRUE;
 
-	// Allocate memory for a duplicate string.
+	// Initialize the size of the duplicate string.
+	tEntry.tData.tAnsi.Length = psString->Length;
+	tEntry.tData.tAnsi.MaximumLength =
+		(bCompact)
+		? (tEntry.tData.tAnsi.Length + sizeof(ANSI_NULL))	// We already validated the size above, so it's safe to sum.
+		: (psString->MaximumLength);
+
+	// Allocate memory for the duplicate string.
 	pcDuplicateString = ExAllocatePoolWithTag(PagedPool,
-											  psString->Length,
+											  tEntry.tData.tAnsi.MaximumLength,
 											  MESSAGE_TABLE_POOL_TAG);
 	if (NULL == pcDuplicateString)
 	{
 		eStatus = STATUS_INSUFFICIENT_RESOURCES;
 		goto lblCleanup;
 	}
+	RtlSecureZeroMemory(pcDuplicateString, tEntry.tData.tAnsi.MaximumLength);
 
-	// Initialize a new entry.
+	// Duplicate the string.
 	RtlMoveMemory(pcDuplicateString,
 				  psString->Buffer,
-				  psString->Length);
+				  (bCompact) ? (psString->Length) : (psString->MaximumLength));
+	tEntry.tData.tAnsi.Buffer = pcDuplicateString;
+
+	// Finish initializing the entry.
 	tEntry.nEntryId = nEntryId;
 	tEntry.bUnicode = FALSE;
-	tEntry.tData.tAnsi.Buffer = pcDuplicateString;
-	tEntry.tData.tAnsi.Length = psString->Length;
-	tEntry.tData.tAnsi.MaximumLength = tEntry.tData.tAnsi.Length;
 
 	// Try to insert it into the tree.
 	ptInserted =
@@ -1092,7 +1117,8 @@ NTSTATUS
 MESSAGETABLE_InsertUnicode(
 	_In_	HMESSAGETABLE		hMessageTable,
 	_In_	ULONG				nEntryId,
-	_In_	PCUNICODE_STRING	pusString
+	_In_	PCUNICODE_STRING	pusString,
+	_In_	BOOLEAN				bCompact
 )
 {
 	NTSTATUS				eStatus				= STATUS_UNSUCCESSFUL;
@@ -1106,7 +1132,7 @@ MESSAGETABLE_InsertUnicode(
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
-		(!messagetable_IsValidUnicodeString(pusString)))
+		(!messagetable_IsValidUnicodeString(pusString, bCompact)))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -1118,25 +1144,33 @@ MESSAGETABLE_InsertUnicode(
 		goto lblCleanup;
 	}
 
-	// Allocate memory for a duplicate string.
+	// Initialize the size of the duplicate string.
+	tEntry.tData.tUnicode.Length = pusString->Length;
+	tEntry.tData.tUnicode.MaximumLength =
+		(bCompact)
+		? (tEntry.tData.tUnicode.Length + sizeof(UNICODE_NULL))	// We already validated the size above, so it's safe to sum.
+		: (pusString->MaximumLength);
+
+	// Allocate memory for the duplicate string.
 	pwcDuplicateString = ExAllocatePoolWithTag(PagedPool,
-											   pusString->Length,
+											   tEntry.tData.tUnicode.MaximumLength,
 											   MESSAGE_TABLE_POOL_TAG);
 	if (NULL == pwcDuplicateString)
 	{
 		eStatus = STATUS_INSUFFICIENT_RESOURCES;
 		goto lblCleanup;
 	}
+	RtlSecureZeroMemory(pwcDuplicateString, tEntry.tData.tUnicode.MaximumLength);
 
-	// Initialize a new entry.
+	// Duplicate the string.
 	RtlMoveMemory(pwcDuplicateString,
 				  pusString->Buffer,
-				  pusString->Length);
+				  (bCompact) ? (pusString->Length) : (pusString->MaximumLength));
+	tEntry.tData.tUnicode.Buffer = pwcDuplicateString;
+
+	// Finish initializing the entry.
 	tEntry.nEntryId = nEntryId;
 	tEntry.bUnicode = TRUE;
-	tEntry.tData.tUnicode.Buffer = pwcDuplicateString;
-	tEntry.tData.tUnicode.Length = pusString->Length;
-	tEntry.tData.tUnicode.MaximumLength = tEntry.tData.tUnicode.Length;
 
 	// Try to insert it into the tree.
 	ptInserted =

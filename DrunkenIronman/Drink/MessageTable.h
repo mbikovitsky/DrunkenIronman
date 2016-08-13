@@ -86,10 +86,17 @@ MESSAGETABLE_Create(
  *
  * @param[in]	pvMessageTableResource	Resource buffer to parse.
  * @param[in]	cbMessageTableResource	Size of the buffer, in bytes.
- * @param[out]	phMessageTable	Will receive a handle
-								to the message table.
+ * @param[in]	bCompact				Indicates whether the strings
+ *										in the message table resource
+ *										should be compacted on insertion
+ *										into the table.
+ * @param[out]	phMessageTable			Will receive a handle
+										to the message table.
  *
  * @returns NTSTATUS
+ *
+ * @see MESSAGETABLE_InsertAnsi
+ * @see MESSAGETABLE_InsertUnicode
  */
 _IRQL_requires_(PASSIVE_LEVEL)
 PAGEABLE
@@ -97,6 +104,7 @@ NTSTATUS
 MESSAGETABLE_CreateFromResource(
 	_In_reads_bytes_(cbMessageTableResource)	PVOID			pvMessageTableResource,
 	_In_										ULONG			cbMessageTableResource,
+	_In_										BOOLEAN			bCompact,
 	_Out_										PHMESSAGETABLE	phMessageTable
 );
 
@@ -118,6 +126,12 @@ MESSAGETABLE_Destroy(
  * @param[in]	hMessageTable	Message table to insert into.
  * @param[in]	nEntryId		ID of the string to insert.
  * @param[in]	psString		String to insert.
+ * @param[in]	bCompact		Indicates whether to compact
+ *								the string. A compacted
+ *								string contains only the string
+ *								data and a terminating null.
+ *								A non-compacted string contains
+ *								the whole ANSI_STRING buffer.
  *
  * @returns NTSTATUS
  *
@@ -130,7 +144,8 @@ NTSTATUS
 MESSAGETABLE_InsertAnsi(
 	_In_	HMESSAGETABLE	hMessageTable,
 	_In_	ULONG			nEntryId,
-	_In_	PCANSI_STRING	psString
+	_In_	PCANSI_STRING	psString,
+	_In_	BOOLEAN			bCompact
 );
 
 /**
@@ -139,6 +154,12 @@ MESSAGETABLE_InsertAnsi(
  * @param[in]	hMessageTable	Message table to insert into.
  * @param[in]	nEntryId		ID of the string to insert.
  * @param[in]	pusString		String to insert.
+ * @param[in]	bCompact		Indicates whether to compact
+ *								the string. A compacted
+ *								string contains only the string
+ *								data and a terminating null.
+ *								A non-compacted string contains
+ *								the whole UNICODE_STRING buffer.
  *
  * @returns NTSTATUS
  *
@@ -151,7 +172,8 @@ NTSTATUS
 MESSAGETABLE_InsertUnicode(
 	_In_	HMESSAGETABLE		hMessageTable,
 	_In_	ULONG				nEntryId,
-	_In_	PCUNICODE_STRING	pusString
+	_In_	PCUNICODE_STRING	pusString,
+	_In_	BOOLEAN				bCompact
 );
 
 /**
