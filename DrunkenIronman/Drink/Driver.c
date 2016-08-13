@@ -65,6 +65,11 @@ STATIC KSPIN_LOCK g_tVgaDumpLock = { 0 };
 _Guarded_by_(g_tVgaDumpLock)
 STATIC BOOLEAN g_bVgaDumpInitialized = FALSE;
 
+/**
+ * Synchronizes access to the IOCTL_DRINK_VANITY handler.
+ */
+STATIC KMUTEX g_tVanityLock = { 0 };
+
 
 /** Forward Declarations ************************************************/
 
@@ -232,6 +237,7 @@ driver_HandleVanity(
 )
 {
 	NTSTATUS					eStatus			= STATUS_UNSUCCESSFUL;
+	BOOLEAN						bLockAcquired	= FALSE;
 	ANSI_STRING					sInputString	= { 0 };
 	PAUX_MODULE_EXTENDED_INFO	ptModules		= NULL;
 	ULONG						nModules		= 0;
@@ -247,6 +253,18 @@ driver_HandleVanity(
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
 	}
+
+	eStatus = KeWaitForSingleObject(&g_tVanityLock,
+									Executive,
+									KernelMode,
+									FALSE,
+									NULL);
+	if (STATUS_SUCCESS != eStatus)
+	{
+		// Really shouldn't happen.
+		KeBugCheck(eStatus);
+	}
+	bLockAcquired = TRUE;
 
 	// Prepare the caller-supplied string.
 	eStatus = UTIL_InitAnsiStringCb((PCHAR)pvInputBuffer,
@@ -303,6 +321,11 @@ driver_HandleVanity(
 lblCleanup:
 	CLOSE(hCarpenter, CARPENTER_Destroy);
 	CLOSE(ptModules, ExFreePool);
+	if (bLockAcquired)
+	{
+		(VOID)KeReleaseMutex(&g_tVanityLock, FALSE);
+		bLockAcquired = FALSE;
+	}
 
 	return eStatus;
 }
@@ -404,6 +427,7 @@ DriverEntry(
 	// Initialize some locks
 	//
 	KeInitializeSpinLock(&g_tVgaDumpLock);
+	KeInitializeMutex(&g_tVanityLock, 0);
 
 	//
 	// Initialize the driver object.
