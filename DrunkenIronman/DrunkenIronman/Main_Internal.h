@@ -80,6 +80,13 @@ typedef enum _SUBFUNCTION_VANITY_ARGS
 /** Typedefs ************************************************************/
 
 /**
+ * Prints out the usage of the application.
+ */
+STATIC
+VOID
+main_PrintUsage(VOID);
+
+/**
  * Subfunction handler prototype.
  *
  * @param[in]	nArguments		Number of command line arguments.

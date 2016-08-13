@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <Drink.h>
 
@@ -60,6 +61,52 @@ STATIC CONST SUBFUNCTION_HANDLER_ENTRY g_atSubfunctionHandlers[] = {
 
 
 /** Functions ***********************************************************/
+
+STATIC
+VOID
+main_PrintUsage(VOID)
+{
+	PWSTR	pwszExecutablePath	= NULL;
+	PCWSTR	pwszExecutableName	= NULL;
+
+	if (0 != _get_wpgmptr(&pwszExecutablePath))
+	{
+		goto lblCleanup;
+	}
+	assert(NULL != pwszExecutablePath);
+
+	// Retrieve the name of the executable.
+	pwszExecutableName = wcsrchr(pwszExecutablePath, L'\\');
+	pwszExecutableName =
+		(NULL == pwszExecutableName)
+		? (pwszExecutablePath)
+		: (pwszExecutableName + 1);
+
+	// Print the banner
+	(VOID)fwprintf(stderr,
+				   L"Copyright (c) 2016 Michael Bikovitsky\n\n%s <subfunction> <subfunction args>\n\n",
+				   pwszExecutableName);
+
+	(VOID)fwprintf(stderr,
+				   L"  convert [input] output\n    Extracts a screenshot from a memory dump.\n");
+
+	(VOID)fwprintf(stderr,
+				   L"  load\n    Loads the driver.\n");
+
+	(VOID)fwprintf(stderr,
+				   L"  unload\n    Unloads the driver.\n");
+
+	(VOID)fwprintf(stderr,
+				   L"  bugshot\n    Instructs the driver to capture a screenshot\n    of the next BSoD.\n");
+
+	(VOID)fwprintf(stderr,
+				   L"  vanity string\n    Crashes the system and displays the specified string\n    on the BSoD.\n");
+
+	(VOID)fwprintf(stderr, L"\n");
+
+lblCleanup:
+	return;
+}
 
 STATIC
 BYTE
@@ -474,7 +521,7 @@ wmain(
 
 	if (CMD_ARGS_COUNT > nArguments)
 	{
-		PROGRESS("Invalid number of arguments specified.");
+		main_PrintUsage();
 		hrResult = E_INVALIDARG;
 		goto lblCleanup;
 	}
@@ -496,7 +543,7 @@ wmain(
 	}
 	if (NULL == pfnHandler)
 	{
-		PROGRESS("Subfunction not recognized.");
+		main_PrintUsage();
 		hrResult = E_INVALIDARG;
 		goto lblCleanup;
 	}
