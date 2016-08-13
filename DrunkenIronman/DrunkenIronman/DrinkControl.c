@@ -14,6 +14,7 @@
 
 #include "Resource.h"
 #include "Util.h"
+#include "Debug.h"
 
 #include "DrinkControl.h"
 
@@ -30,6 +31,8 @@ DRINKCONTROL_LoadDriver(VOID)
 	SC_HANDLE	hServiceControlManager	= NULL;
 	SC_HANDLE	hDriverService			= NULL;
 
+	PROGRESS("About to load the driver.");
+
 	hrResult = UTIL_ReadResource(GetModuleHandleW(NULL),
 								 MAKEINTRESOURCEW(IDR_DRIVER),
 								 L"BINARY",
@@ -38,6 +41,7 @@ DRINKCONTROL_LoadDriver(VOID)
 								 &cbDriver);
 	if (FAILED(hrResult))
 	{
+		PROGRESS("Failed reading the driver from the resource section.");
 		goto lblCleanup;
 	}
 
@@ -46,6 +50,7 @@ DRINKCONTROL_LoadDriver(VOID)
 										 &pwszTempDriverPath);
 	if (FAILED(hrResult))
 	{
+		PROGRESS("Failed writing the driver to a temporary file.");
 		goto lblCleanup;
 	}
 
@@ -54,6 +59,7 @@ DRINKCONTROL_LoadDriver(VOID)
 											SC_MANAGER_CREATE_SERVICE);
 	if (NULL == hServiceControlManager)
 	{
+		PROGRESS("Failed opening the SCM.");
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
 		goto lblCleanup;
 	}
@@ -73,6 +79,7 @@ DRINKCONTROL_LoadDriver(VOID)
 									NULL);
 	if (NULL == hDriverService)
 	{
+		PROGRESS("Failed creating a service for the driver.");
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
 		goto lblCleanup;
 	}
@@ -81,10 +88,12 @@ DRINKCONTROL_LoadDriver(VOID)
 					   0,
 					   NULL))
 	{
+		PROGRESS("Failed starting the driver service.");
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
 		goto lblCleanup;
 	}
 
+	PROGRESS("Driver loaded.");
 	hrResult = S_OK;
 
 lblCleanup:
@@ -112,11 +121,14 @@ DRINKCONTROL_UnloadDriver(VOID)
 	SC_HANDLE		hDriverService			= NULL;
 	SERVICE_STATUS	tStatus					= { 0 };
 
+	PROGRESS("About to unload the driver.");
+
 	hServiceControlManager = OpenSCManagerW(NULL,
 											SERVICES_ACTIVE_DATABASEW,
 											SC_MANAGER_CONNECT);
 	if (NULL == hServiceControlManager)
 	{
+		PROGRESS("Failed opening the SCM.");
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
 		goto lblCleanup;
 	}
@@ -126,6 +138,7 @@ DRINKCONTROL_UnloadDriver(VOID)
 								  SERVICE_STOP);
 	if (NULL == hDriverService)
 	{
+		PROGRESS("Failed opening the driver service.");
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
 		goto lblCleanup;
 	}
@@ -134,10 +147,12 @@ DRINKCONTROL_UnloadDriver(VOID)
 						SERVICE_CONTROL_STOP,
 						&tStatus))
 	{
+		PROGRESS("Failed stopping the driver service.");
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
 		goto lblCleanup;
 	}
 
+	PROGRESS("Driver unloaded.");
 	hrResult = S_OK;
 
 lblCleanup:
@@ -158,6 +173,8 @@ DRINKCONTROL_ControlDriver(
 	HANDLE	hDrinkDevice	= INVALID_HANDLE_VALUE;
 	DWORD	cbReturned		= 0;
 
+	PROGRESS("Sending control code 0x%08lX to driver.", eControlCode);
+
 	hDrinkDevice = CreateFileW(L"\\\\.\\" DRINK_DEVICE_NAME,
 							   GENERIC_READ | GENERIC_WRITE,
 							   0,
@@ -167,6 +184,7 @@ DRINKCONTROL_ControlDriver(
 							   NULL);
 	if (INVALID_HANDLE_VALUE == hDrinkDevice)
 	{
+		PROGRESS("Failed opening the driver's control device. Did you load the driver?");
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
 		goto lblCleanup;
 	}
@@ -178,9 +196,12 @@ DRINKCONTROL_ControlDriver(
 						 &cbReturned,
 						 NULL))
 	{
+		PROGRESS("Failed sending the control code.");
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
 		goto lblCleanup;
 	}
+
+	PROGRESS("Control code sent.");
 
 	hrResult = S_OK;
 
