@@ -1143,6 +1143,7 @@ MESSAGETABLE_InsertUnicode(
 	{
 		goto lblCleanup;
 	}
+	bLockAcquired = TRUE;
 
 	// Initialize the size of the duplicate string.
 	tEntry.tData.tUnicode.Length = pusString->Length;
@@ -1239,6 +1240,7 @@ MESSAGETABLE_GetEntry(
 	{
 		goto lblCleanup;
 	}
+	bLockAcquired = TRUE;
 
 	tDummyEntry.nEntryId = nEntryId;
 	ptEntry =
