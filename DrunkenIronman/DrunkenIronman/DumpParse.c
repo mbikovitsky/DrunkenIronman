@@ -11,6 +11,7 @@
 #include <DbgEng.h>
 
 #include "Util.h"
+#include "Debug.h"
 
 #include "DumpParse.h"
 
@@ -43,13 +44,17 @@ DUMPPARSE_Open(
 
 	if (NULL == phDump)
 	{
+		PROGRESS("Invalid arguments specified.");
 		hrResult = E_INVALIDARG;
 		goto lblCleanup;
 	}
 
+	PROGRESS("Opening dump file '%S'.", pwszPath);
+
 	ptContext = HEAPALLOC(sizeof(*ptContext));
 	if (NULL == ptContext)
 	{
+		PROGRESS("Oops. Ran out of memory.");
 		hrResult = E_OUTOFMEMORY;
 		goto lblCleanup;
 	}
@@ -57,11 +62,14 @@ DUMPPARSE_Open(
 	hrResult = DebugCreate(&IID_IDebugClient, &piDebugClient);
 	if (FAILED(hrResult))
 	{
+		PROGRESS("Failed obtaining the IDebugClient4.");
 		goto lblCleanup;
 	}
 
 	if (NULL == pwszPath)
 	{
+		PROGRESS("NULL path specified. Obtaining the path to the system dump file.");
+
 		hrResult = UTIL_RegGetValue(HKEY_LOCAL_MACHINE,
 									L"SYSTEM\\CurrentControlSet\\Control\\CrashControl",
 									L"DumpFile",
@@ -70,10 +78,12 @@ DUMPPARSE_Open(
 									&eType);
 		if (FAILED(hrResult))
 		{
+			PROGRESS("Failed obtaining the path to the system dump file.");
 			goto lblCleanup;
 		}
 		if ((REG_SZ != eType) && (REG_EXPAND_SZ != eType))
 		{
+			PROGRESS("Failed obtaining the path to the system dump file. Incorrect data format.");
 			hrResult = HRESULT_FROM_WIN32(ERROR_INVALID_DATATYPE);
 			goto lblCleanup;
 		}
@@ -96,6 +106,7 @@ DUMPPARSE_Open(
 	hrResult = piDebugClient->lpVtbl->OpenDumpFile(piDebugClient, pszExpandedPath);
 	if (FAILED(hrResult))
 	{
+		PROGRESS("Failed opening the dump file.");
 		goto lblCleanup;
 	}
 
@@ -158,6 +169,7 @@ DUMPPARSE_ReadTagged(
 		(NULL == ppvData) ||
 		(NULL == pcbData))
 	{
+		PROGRESS("Invalid arguments specified.");
 		hrResult = E_INVALIDARG;
 		goto lblCleanup;
 	}
@@ -169,6 +181,7 @@ DUMPPARSE_ReadTagged(
 													 &piDebugDataSpaces);
 	if (FAILED(hrResult))
 	{
+		PROGRESS("Failed obtaining the IDebugDataSpaces3 interface.");
 		goto lblCleanup;
 	}
 
@@ -179,12 +192,14 @@ DUMPPARSE_ReadTagged(
 													 &cbData);
 	if (FAILED(hrResult))
 	{
+		PROGRESS("Failed reading the tagged data. Is it even there?");
 		goto lblCleanup;
 	}
 
 	pvData = HEAPALLOC(cbData);
 	if (NULL == pvData)
 	{
+		PROGRESS("Oops. Ran out of memory.");
 		hrResult = E_OUTOFMEMORY;
 		goto lblCleanup;
 	}
@@ -196,6 +211,7 @@ DUMPPARSE_ReadTagged(
 													 NULL);
 	if (FAILED(hrResult))
 	{
+		PROGRESS("Failed reading the tagged data. Is it even there?");
 		goto lblCleanup;
 	}
 
