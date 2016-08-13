@@ -1215,21 +1215,24 @@ _IRQL_requires_(PASSIVE_LEVEL)
 PAGEABLE
 NTSTATUS
 MESSAGETABLE_GetEntry(
-	_In_		HMESSAGETABLE			hMessageTable,
-	_In_		ULONG					nEntryId,
-	_Outptr_	PCMESSAGE_TABLE_ENTRY *	pptEntry
+	_In_	HMESSAGETABLE			hMessageTable,
+	_In_	ULONG					nEntryId,
+	_Out_	PMESSAGE_TABLE_ENTRY	ptEntry
 )
 {
 	NTSTATUS				eStatus			= STATUS_UNSUCCESSFUL;
 	PMESSAGE_TABLE			ptMessageTable	= (PMESSAGE_TABLE)hMessageTable;
 	BOOLEAN					bLockAcquired	= FALSE;
 	MESSAGE_TABLE_ENTRY		tDummyEntry		= { 0 };
-	PCMESSAGE_TABLE_ENTRY	ptEntry			= NULL;
+	PCMESSAGE_TABLE_ENTRY	ptFoundEntry	= NULL;
+	PVOID					pvFoundString	= NULL;
+	USHORT					cbDuplicate		= 0;
+	PVOID					pvDuplicate		= NULL;
 
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
-		(NULL == pptEntry))
+		(NULL == ptEntry))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -1242,22 +1245,55 @@ MESSAGETABLE_GetEntry(
 	}
 	bLockAcquired = TRUE;
 
+	// Find the entry.
 	tDummyEntry.nEntryId = nEntryId;
-	ptEntry =
+	ptFoundEntry =
 		(PCMESSAGE_TABLE_ENTRY)RtlLookupElementGenericTableAvl(&(ptMessageTable->tTable),
 															   &tDummyEntry);
-	if (NULL == ptEntry)
+	if (NULL == ptFoundEntry)
 	{
 		eStatus = STATUS_NOT_FOUND;
 		goto lblCleanup;
 	}
+	pvFoundString =
+		(ptFoundEntry->bUnicode)
+		? ((PVOID)(ptFoundEntry->tData.tUnicode.Buffer))
+		: ((PVOID)(ptFoundEntry->tData.tAnsi.Buffer));
+	ASSERT(NULL != pvFoundString);
 
-	// Return results:
-	*pptEntry = ptEntry;
+	// Allocate memory for the duplicate.
+	cbDuplicate =
+		(ptFoundEntry->bUnicode)
+		? (ptFoundEntry->tData.tUnicode.MaximumLength)
+		: (ptFoundEntry->tData.tAnsi.MaximumLength);
+	pvDuplicate = ExAllocatePoolWithTag(PagedPool,
+										cbDuplicate,
+										MESSAGE_TABLE_POOL_TAG);
+	if (NULL == pvDuplicate)
+	{
+		eStatus = STATUS_INSUFFICIENT_RESOURCES;
+		goto lblCleanup;
+	}
+
+	// Duplicate the string.
+	RtlMoveMemory(pvDuplicate, pvFoundString, cbDuplicate);
+
+	// Transfer ownership:
+	RtlMoveMemory(ptEntry, ptFoundEntry, sizeof(*ptEntry));
+	if (ptFoundEntry->bUnicode)
+	{
+		ptEntry->tData.tUnicode.Buffer = pvDuplicate;
+	}
+	else
+	{
+		ptEntry->tData.tAnsi.Buffer = pvDuplicate;
+	}
+	pvDuplicate = NULL;
 
 	eStatus = STATUS_SUCCESS;
 
 lblCleanup:
+	CLOSE(pvDuplicate, ExFreePool);
 	if (bLockAcquired)
 	{
 		messagetable_ReleaseLock(ptMessageTable);

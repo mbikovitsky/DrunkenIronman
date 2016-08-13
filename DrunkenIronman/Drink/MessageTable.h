@@ -181,20 +181,20 @@ MESSAGETABLE_InsertUnicode(
  *
  * @param[in]	hMessageTable	Message table to search for the entry.
  * @param[in]	nEntryId		ID of the entry to look up.
- * @param[out]	pptEntry		Will receive a pointer to the found entry.
+ * @param[out]	ptEntry			Will receive a copy of the found entry.
  *
  * @returns NTSTATUS
  *
- * @remark	The entry and its contents MUST NOT
- *			be modified by the calling code.
+ * @remark	Free the allocated copy of the
+ *			string to the _paged_ pool.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
 PAGEABLE
 NTSTATUS
 MESSAGETABLE_GetEntry(
-	_In_		HMESSAGETABLE			hMessageTable,
-	_In_		ULONG					nEntryId,
-	_Outptr_	PCMESSAGE_TABLE_ENTRY *	pptEntry
+	_In_	HMESSAGETABLE			hMessageTable,
+	_In_	ULONG					nEntryId,
+	_Out_	PMESSAGE_TABLE_ENTRY	ptEntry
 );
 
 /**
