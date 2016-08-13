@@ -8,6 +8,7 @@
 
 /** Headers *************************************************************/
 #include <ntifs.h>
+#include <ntstrsafe.h>
 
 #include <Common.h>
 
@@ -125,6 +126,7 @@ CARPENTER_Create(
 
 	eStatus = MESSAGETABLE_CreateFromResource(ptCarpenter->pvInImageMessageTable,
 											  ptCarpenter->cbInImageMessageTable,
+											  FALSE,
 											  &(ptCarpenter->hMessageTable));
 	if (!NT_SUCCESS(eStatus))
 	{
@@ -176,8 +178,13 @@ CARPENTER_StageMessage(
 	_In_	PCANSI_STRING	psMessage
 )
 {
-	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
-	PCARPENTER	ptCarpenter	= (PCARPENTER)hCarpenter;
+	NTSTATUS				eStatus				= STATUS_UNSUCCESSFUL;
+	PCARPENTER				ptCarpenter			= (PCARPENTER)hCarpenter;
+	MESSAGE_TABLE_ENTRY		tFoundEntry			= { 0 };
+	PVOID					pvFoundString		= NULL;
+	USHORT					cbFoundString		= 0;
+	PCHAR					pcDuplicateString	= NULL;
+	ANSI_STRING				sDuplicateString	= { 0 };
 
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
@@ -188,13 +195,65 @@ CARPENTER_StageMessage(
 		goto lblCleanup;
 	}
 
+	// Verify that we already have an entry with the same ID.
+	// Otherwise, inserting a new entry will increase
+	// the size of the table, which is not supported.
+	eStatus = MESSAGETABLE_GetEntry(ptCarpenter->hMessageTable,
+									nMessageId,
+									&tFoundEntry);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+	pvFoundString =
+		(tFoundEntry.bUnicode)
+		? ((PVOID)(tFoundEntry.tData.tUnicode.Buffer))
+		: ((PVOID)(tFoundEntry.tData.tAnsi.Buffer));
+	ASSERT(NULL != pvFoundString);
+
+	// Determine the size of the found string's buffer.
+	cbFoundString =
+		(tFoundEntry.bUnicode)
+		? (tFoundEntry.tData.tUnicode.MaximumLength)
+		: (tFoundEntry.tData.tAnsi.MaximumLength);
+
+	// Allocate a buffer of the same size that will be filled with the caller's string.
+	pcDuplicateString = ExAllocatePoolWithTag(PagedPool, cbFoundString, CARPENTER_POOL_TAG);
+	if (NULL == pcDuplicateString)
+	{
+		eStatus = STATUS_INSUFFICIENT_RESOURCES;
+		goto lblCleanup;
+	}
+
+	// Now copy the caller's string, making sure we do not overflow.
+	eStatus = RtlStringCbPrintfExA(pcDuplicateString,
+								   cbFoundString,
+								   NULL,
+								   NULL,
+								   STRSAFE_FILL_BYTE(0),
+								   "%Z",
+								   psMessage);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Initialize an ANSI_STRING for the duplicate.
+	RtlInitAnsiString(&sDuplicateString, pcDuplicateString);
+	sDuplicateString.MaximumLength = cbFoundString;
+
+	// Finally, replace the string already in the table.
 	eStatus = MESSAGETABLE_InsertAnsi(ptCarpenter->hMessageTable,
 									  nMessageId,
-									  psMessage);
+									  &sDuplicateString,
+									  FALSE);
 
 	// Keep last status
 
 lblCleanup:
+	CLOSE(pcDuplicateString, ExFreePool);
+	CLOSE(pvFoundString, ExFreePool);
+
 	return eStatus;
 }
 
@@ -228,9 +287,8 @@ CARPENTER_ApplyPatch(
 		goto lblCleanup;
 	}
 
-	// Make sure the new table does not exceed in size
-	// the old one.
-	if (cbNewMessageTable > ptCarpenter->cbInImageMessageTable)
+	// Make sure the new table has the same size as the old one.
+	if (cbNewMessageTable != ptCarpenter->cbInImageMessageTable)
 	{
 		eStatus = STATUS_BUFFER_TOO_SMALL;
 		goto lblCleanup;
@@ -274,9 +332,7 @@ CARPENTER_ApplyPatch(
 	// Patch the message table
 	RtlMoveMemory(pvNewMapping, pvNewMessageTable, cbNewMessageTable);
 
-	// Zero the rest
-	RtlSecureZeroMemory(RtlOffsetToPointer(pvNewMapping, cbNewMessageTable),
-						ptCarpenter->cbInImageMessageTable - cbNewMessageTable);
+	// That's it!
 
 	eStatus = STATUS_SUCCESS;
 
