@@ -16,6 +16,9 @@
     <Filter Include="DrinkControl">
       <UniqueIdentifier>{80f419ea-8d20-4052-8321-7ddcd78e3acd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Debug">
+      <UniqueIdentifier>{3ee48d00-6e93-4e30-9cb6-efb1c62392f3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Util.c">
@@ -33,6 +36,9 @@
     <ClCompile Include="DrinkControl.c">
       <Filter>DrinkControl</Filter>
     </ClCompile>
+    <ClCompile Include="Debug.c">
+      <Filter>Debug</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Util.h">
@@ -49,6 +55,9 @@
     </ClInclude>
     <ClInclude Include="DrinkControl.h">
       <Filter>DrinkControl</Filter>
+    </ClInclude>
+    <ClInclude Include="Debug.h">
+      <Filter>Debug</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
