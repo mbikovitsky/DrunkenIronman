@@ -160,6 +160,10 @@ messagetable_CompareRoutine(
 
 	PAGED_CODE();
 
+#ifndef DBG
+	UNREFERENCED_PARAMETER(ptTable);
+#endif // !DBG
+
 	ASSERT(NULL != ptTable);
 	ASSERT(NULL != pvFirstStruct);
 	ASSERT(NULL != pvSecondStruct);
@@ -199,6 +203,10 @@ messagetable_AllocateRoutine(
 {
 	PAGED_CODE();
 
+#ifndef DBG
+	UNREFERENCED_PARAMETER(ptTable);
+#endif // !DBG
+
 	ASSERT(NULL != ptTable);
 	ASSERT(0 != cbSize);
 
@@ -223,6 +231,10 @@ messagetable_FreeRoutine(
 )
 {
 	PAGED_CODE();
+
+#ifndef DBG
+	UNREFERENCED_PARAMETER(ptTable);
+#endif // !DBG
 
 	ASSERT(NULL != ptTable);
 	ASSERT(NULL != pvBuffer);
@@ -628,6 +640,10 @@ messagetable_CountingCallback(
 
 	PAGED_CODE();
 
+#ifndef DBG
+	UNREFERENCED_PARAMETER(pbContinueEnumeration);
+#endif // !DBG
+
 	ASSERT(NULL != ptEntry);
 	ASSERT(NULL != pvContext);
 	ASSERT(NULL != pbContinueEnumeration);
@@ -679,6 +695,10 @@ messagetable_SerializingCallback(
 	PMESSAGE_RESOURCE_ENTRY			ptCurrentEntry	= NULL;
 
 	PAGED_CODE();
+
+#ifndef DBG
+	UNREFERENCED_PARAMETER(pbContinueEnumeration);
+#endif // !DBG
 
 	ASSERT(NULL != ptEntry);
 	ASSERT(NULL != pvContext);

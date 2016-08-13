@@ -302,6 +302,12 @@ vgadump_BugCheckSecondaryDumpDataCallback(
 	PKBUGCHECK_SECONDARY_DUMP_DATA	ptSecondaryDumpData	= (PKBUGCHECK_SECONDARY_DUMP_DATA)pvReasonSpecificData;
 	ULONG							nPlane				= 0;
 
+#ifndef DBG
+	UNREFERENCED_PARAMETER(eReason);
+	UNREFERENCED_PARAMETER(ptRecord);
+	UNREFERENCED_PARAMETER(cbReasonSpecificData);
+#endif // !DBG
+
 	ASSERT(KbCallbackSecondaryDumpData == eReason);
 	ASSERT(NULL != ptRecord);
 	ASSERT(NULL != pvReasonSpecificData);
