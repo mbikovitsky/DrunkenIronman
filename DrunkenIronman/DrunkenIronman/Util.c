@@ -9,6 +9,7 @@
 /** Headers *************************************************************/
 #include <Windows.h>
 #include <strsafe.h>
+#include <intsafe.h>
 
 #include "Util.h"
 
@@ -357,6 +358,76 @@ lblCleanup:
 		(VOID)DeleteFileW(wszTempPath);
 		bDeleteFile = FALSE;
 	}
+
+	return hrResult;
+}
+
+HRESULT
+UTIL_DuplicateStringUnicodeToAnsi(
+	_In_		PCWSTR	pwszSource,
+	_Outptr_	PSTR *	ppszDestination
+)
+{
+	HRESULT	hrResult		= E_FAIL;
+	INT		cbReturned		= 0;
+	DWORD	cbDestination	= 0;
+	PSTR	pszDestination	= NULL;
+
+	if ((NULL == pwszSource) ||
+		(NULL == ppszDestination))
+	{
+		hrResult = E_INVALIDARG;
+		goto lblCleanup;
+	}
+
+	// Determine the amount of memory required for the converted string.
+	cbReturned = WideCharToMultiByte(CP_ACP,
+									 0,
+									 pwszSource, -1,
+									 NULL, 0,
+									 NULL,
+									 NULL);
+	if (0 == cbReturned)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	// Safely cast to DWORD.
+	hrResult = IntToDWord(cbReturned, &cbDestination);
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	// Allocate memory for the converted path.
+	pszDestination = HEAPALLOC(cbDestination);
+	if (NULL == pszDestination)
+	{
+		hrResult = E_OUTOFMEMORY;
+		goto lblCleanup;
+	}
+
+	cbReturned = WideCharToMultiByte(CP_ACP,
+									 0,
+									 pwszSource, -1,
+									 pszDestination, (INT)cbDestination,
+									 NULL,
+									 NULL);
+	if (0 == cbReturned)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	// Transfer ownership:
+	*ppszDestination = pszDestination;
+	pszDestination = NULL;
+
+	hrResult = S_OK;
+
+lblCleanup:
+	HEAPFREE(pszDestination);
 
 	return hrResult;
 }

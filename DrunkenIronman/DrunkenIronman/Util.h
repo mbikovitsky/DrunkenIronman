@@ -156,3 +156,19 @@ UTIL_WriteToTemporaryFile(
 	_In_						DWORD	cbBuffer,
 	_Outptr_					PWSTR *	ppwzTempPath
 );
+
+/**
+ * Converts a Unicode string to an ANSI string.
+ *
+ * @param[in]	pwszSource		String to convert.
+ * @param[out]	ppszDestination	Will receive the converted string.
+ *
+ * @returns HRESULT
+ *
+ * @remark Free the returned string to the process heap.
+ */
+HRESULT
+UTIL_DuplicateStringUnicodeToAnsi(
+	_In_		PCWSTR	pwszSource,
+	_Outptr_	PSTR *	ppszDestination
+);
