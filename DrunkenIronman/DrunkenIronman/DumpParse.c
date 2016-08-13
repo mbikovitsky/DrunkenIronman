@@ -19,7 +19,7 @@
 
 typedef struct _DUMP_FILE_CONTEXT
 {
-	IDebugClient4 *	piDebugClient;
+	IDebugClient *	piDebugClient;
 } DUMP_FILE_CONTEXT, *PDUMP_FILE_CONTEXT;
 typedef CONST DUMP_FILE_CONTEXT *PCDUMP_FILE_CONTEXT;
 
@@ -34,11 +34,12 @@ DUMPPARSE_Open(
 {
 	HRESULT				hrResult			= E_FAIL;
 	PDUMP_FILE_CONTEXT	ptContext			= NULL;
-	IDebugClient4 *		piDebugClient		= NULL;
+	IDebugClient *		piDebugClient		= NULL;
 	DWORD				eType				= REG_NONE;
 	DWORD				cbSystemDumpFile	= 0;
 	PWSTR				pwszSystemDumpFile	= NULL;
 	PWSTR				pwszExpandedPath	= NULL;
+	PSTR				pszExpandedPath		= NULL;
 
 	if (NULL == phDump)
 	{
@@ -53,7 +54,7 @@ DUMPPARSE_Open(
 		goto lblCleanup;
 	}
 
-	hrResult = DebugCreate(&IID_IDebugClient4, &piDebugClient);
+	hrResult = DebugCreate(&IID_IDebugClient, &piDebugClient);
 	if (FAILED(hrResult))
 	{
 		goto lblCleanup;
@@ -86,9 +87,13 @@ DUMPPARSE_Open(
 		goto lblCleanup;
 	}
 
-	hrResult = piDebugClient->lpVtbl->OpenDumpFileWide(piDebugClient,
-													   pwszExpandedPath,
-													   0);
+	hrResult = UTIL_DuplicateStringUnicodeToAnsi(pwszExpandedPath, &pszExpandedPath);
+	if (FAILED(hrResult))
+	{
+		goto lblCleanup;
+	}
+
+	hrResult = piDebugClient->lpVtbl->OpenDumpFile(piDebugClient, pszExpandedPath);
 	if (FAILED(hrResult))
 	{
 		goto lblCleanup;
@@ -103,6 +108,7 @@ DUMPPARSE_Open(
 	hrResult = S_OK;
 
 lblCleanup:
+	HEAPFREE(pszExpandedPath);
 	HEAPFREE(pwszExpandedPath);
 	HEAPFREE(pwszSystemDumpFile);
 	RELEASE(piDebugClient);
@@ -140,7 +146,7 @@ DUMPPARSE_ReadTagged(
 {
 	HRESULT				hrResult			= E_FAIL;
 	PDUMP_FILE_CONTEXT	ptContext			= (PDUMP_FILE_CONTEXT)hDump;
-	IDebugClient4 *		piDebugClient		= NULL;
+	IDebugClient *		piDebugClient		= NULL;
 	IDebugDataSpaces3 *	piDebugDataSpaces	= NULL;
 	ULONG				cbData				= 0;
 	PVOID				pvData				= NULL;
