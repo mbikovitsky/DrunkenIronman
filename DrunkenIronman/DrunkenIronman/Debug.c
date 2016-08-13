@@ -90,7 +90,7 @@ DEBUG_Progress(
 	//
 
 	(VOID)fprintf(stderr,
-				  "[*] %-10.10s - ",
+				  "[*] %-20.20s - ",
 				  pszFunction);
 
 	(VOID)vfprintf(stderr,
