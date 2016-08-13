@@ -55,8 +55,14 @@ STATIC CONST UNICODE_STRING g_usControlDeviceSymlink =
 	RTL_CONSTANT_STRING(L"\\DosDevices\\Global\\" DRINK_DEVICE_NAME);
 
 /**
+ * Synchronizes access to the VGA dump module.
+ */
+STATIC KSPIN_LOCK g_tVgaDumpLock = { 0 };
+
+/**
  * Indicates whether VGA dumping has been initialized.
  */
+_Guarded_by_(g_tVgaDumpLock)
 STATIC BOOLEAN g_bVgaDumpInitialized = FALSE;
 
 
@@ -182,12 +188,24 @@ STATIC
 NTSTATUS
 driver_HandleBugshot(VOID)
 {
-	NTSTATUS	eStatus	= STATUS_UNSUCCESSFUL;
+	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
+	KIRQL		eOldIrql	= HIGH_LEVEL;
 
 	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
 
-	eStatus = VGADUMP_Initialize();
-	g_bVgaDumpInitialized = NT_SUCCESS(eStatus);
+	KeAcquireSpinLock(&g_tVgaDumpLock, &eOldIrql);
+	{
+		if (!g_bVgaDumpInitialized)
+		{
+			eStatus = VGADUMP_Initialize();
+			g_bVgaDumpInitialized = NT_SUCCESS(eStatus);
+		}
+		else
+		{
+			eStatus = STATUS_ALREADY_COMMITTED;
+		}
+	}
+	KeReleaseSpinLock(&g_tVgaDumpLock, eOldIrql);
 
 	// Keep last status
 
@@ -381,6 +399,11 @@ DriverEntry(
 	{
 		goto lblCleanup;
 	}
+
+	//
+	// Initialize some locks
+	//
+	KeInitializeSpinLock(&g_tVgaDumpLock);
 
 	//
 	// Initialize the driver object.
