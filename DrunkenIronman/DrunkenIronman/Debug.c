@@ -68,6 +68,12 @@ DEBUG_Progress(
 	BOOL	bVaListInitialized	= FALSE;
 	BOOL	bLockAcquired		= FALSE;
 
+	// Abort if debugging has not been initialized.
+	if (NULL == g_hDebugMutex)
+	{
+		goto lblCleanup;
+	}
+
 	va_start(vaArgs, pszFormat);
 	bVaListInitialized = TRUE;
 
@@ -108,6 +114,6 @@ lblCleanup:
 	if (bVaListInitialized)
 	{
 		va_end(vaArgs);
-		bVaListInitialized = TRUE;
+		bVaListInitialized = FALSE;
 	}
 }

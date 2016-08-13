@@ -35,6 +35,9 @@ DEBUG_Init(VOID);
 
 /**
  * Terminates debugging support.
+ *
+ * @remark	This function does nothing if the module
+ *			has not been initialized.
  */
 VOID
 DEBUG_Shutdown(VOID);
@@ -48,6 +51,8 @@ DEBUG_Shutdown(VOID);
  *
  * @remark	Do not use this function directly.
  *			Instead, use the PROGRESS macro.
+ * @remark	This function does nothing if the module
+ *			has not been initialized.
  */
 VOID
 DEBUG_Progress(

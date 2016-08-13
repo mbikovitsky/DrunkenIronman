@@ -462,21 +462,15 @@ wmain(
 	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
 )
 {
-	HRESULT						hrResult				= E_FAIL;
-	BOOL						bDebuggingInitialized	= FALSE;
-	DWORD						nIndex					= 0;
-	PCSUBFUNCTION_HANDLER_ENTRY	ptCurrentEntry			= NULL;
-	PFN_SUBFUNCTION_HANDLER		pfnHandler				= NULL;
+	HRESULT						hrResult		= E_FAIL;
+	DWORD						nIndex			= 0;
+	PCSUBFUNCTION_HANDLER_ENTRY	ptCurrentEntry	= NULL;
+	PFN_SUBFUNCTION_HANDLER		pfnHandler		= NULL;
 
 	assert(0 != nArguments);
 	assert(NULL != ppwszArguments);
 
-	hrResult = DEBUG_Init();
-	if (FAILED(hrResult))
-	{
-		goto lblCleanup;
-	}
-	bDebuggingInitialized = TRUE;
+	(VOID)DEBUG_Init();
 
 	if (CMD_ARGS_COUNT > nArguments)
 	{
@@ -517,10 +511,7 @@ wmain(
 	// Keep last status
 
 lblCleanup:
-	if (bDebuggingInitialized)
-	{
-		DEBUG_Shutdown();
-		bDebuggingInitialized = FALSE;
-	}
+	DEBUG_Shutdown();
+
 	return (INT)hrResult;
 }
