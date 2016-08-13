@@ -90,11 +90,10 @@ CARPENTER_Create(
 	PCARPENTER				ptCarpenter	= NULL;
 	RESOURCE_PATH_COMPONENT	atPath[3]	= { 0 };
 
-	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == pvImageBase) ||
-		(NULL == phCarpenter) ||
-		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+		(NULL == phCarpenter))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -154,10 +153,9 @@ CARPENTER_Destroy(
 {
 	PCARPENTER	ptCarpenter	= (PCARPENTER)hCarpenter;
 
-	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
-	if ((NULL == hCarpenter) ||
-		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+	if (NULL == hCarpenter)
 	{
 		goto lblCleanup;
 	}
@@ -181,11 +179,10 @@ CARPENTER_StageMessage(
 	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
 	PCARPENTER	ptCarpenter	= (PCARPENTER)hCarpenter;
 
-	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hCarpenter) ||
-		(NULL == psMessage) ||
-		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+		(NULL == psMessage))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -216,10 +213,9 @@ CARPENTER_ApplyPatch(
 	BOOLEAN		bMdlLocked			= FALSE;
 	PVOID		pvNewMapping		= NULL;
 
-	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
-	if ((NULL == hCarpenter) ||
-		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+	if (NULL == hCarpenter)
 	{
 		goto lblCleanup;
 	}

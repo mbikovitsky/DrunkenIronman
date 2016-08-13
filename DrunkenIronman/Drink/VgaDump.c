@@ -347,11 +347,7 @@ VGADUMP_Initialize(VOID)
 	NTSTATUS			eStatus				= STATUS_UNSUCCESSFUL;
 	PHYSICAL_ADDRESS	pvVgaPhysicalBase	= { 0 };
 
-	if (DISPATCH_LEVEL < KeGetCurrentIrql())
-	{
-		eStatus = STATUS_INVALID_PARAMETER;
-		goto lblCleanup;
-	}
+	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
 
 	// Map the VGA video memory so that we'll be able
 	// to access it in protected mode.
@@ -391,10 +387,7 @@ _IRQL_requires_max_(DISPATCH_LEVEL)
 VOID
 VGADUMP_Shutdown(VOID)
 {
-	if (DISPATCH_LEVEL < KeGetCurrentIrql())
-	{
-		goto lblCleanup;
-	}
+	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
 
 	if (g_bCallbackRegistered)
 	{
@@ -408,6 +401,6 @@ VGADUMP_Shutdown(VOID)
 		g_pvVgaBase = NULL;
 	}
 
-lblCleanup:
+//lblCleanup:
 	return;
 }

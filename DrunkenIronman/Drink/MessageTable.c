@@ -815,10 +815,9 @@ MESSAGETABLE_Create(
 	NTSTATUS		eStatus			= STATUS_UNSUCCESSFUL;
 	PMESSAGE_TABLE	ptMessageTable	= NULL;
 
-	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
-	if ((NULL == phMessageTable) ||
-		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+	if (NULL == phMessageTable)
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -878,12 +877,11 @@ MESSAGETABLE_CreateFromResource(
 	ULONG						nCurrentId		= 0;
 	PCMESSAGE_RESOURCE_ENTRY	ptCurrentEntry	= NULL;
 
-	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == pvMessageTableResource) ||
 		(0 == cbMessageTableResource) ||
-		(NULL == phMessageTable) ||
-		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+		(NULL == phMessageTable))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -959,10 +957,9 @@ MESSAGETABLE_Destroy(
 	PMESSAGE_TABLE	ptMessageTable	= (PMESSAGE_TABLE)hMessageTable;
 	PVOID			pvData			= NULL;
 
-	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
-	if ((NULL == hMessageTable) ||
-		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+	if (NULL == hMessageTable)
 	{
 		goto lblCleanup;
 	}
@@ -1015,11 +1012,10 @@ MESSAGETABLE_InsertAnsi(
 	BOOLEAN					bNewElement			= FALSE;
 	PMESSAGE_TABLE_ENTRY	ptInserted			= NULL;
 
-	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
-		(!messagetable_IsValidAnsiString(psString)) ||
-		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+		(!messagetable_IsValidAnsiString(psString)))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -1107,11 +1103,10 @@ MESSAGETABLE_InsertUnicode(
 	BOOLEAN					bNewElement			= FALSE;
 	PMESSAGE_TABLE_ENTRY	ptInserted			= NULL;
 
-	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
-		(!messagetable_IsValidUnicodeString(pusString)) ||
-		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+		(!messagetable_IsValidUnicodeString(pusString)))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -1196,11 +1191,10 @@ MESSAGETABLE_GetEntry(
 	MESSAGE_TABLE_ENTRY		tDummyEntry		= { 0 };
 	PCMESSAGE_TABLE_ENTRY	ptEntry			= NULL;
 
-	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
-		(NULL == pptEntry) ||
-		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+		(NULL == pptEntry))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -1255,11 +1249,10 @@ MESSAGETABLE_EnumerateEntries(
 	PCMESSAGE_TABLE_ENTRY	ptCurrent		= NULL;
 	BOOLEAN					bContinue		= FALSE;
 
-	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
-		(NULL == pfnCallback) ||
-		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+		(NULL == pfnCallback))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
@@ -1323,12 +1316,11 @@ MESSAGETABLE_Serialize(
 	PMESSAGE_RESOURCE_DATA			ptMessageData		= NULL;
 	SERIALIZING_CALLBACK_CONTEXT	tSerializingContext	= { 0 };
 
-	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
 		(NULL == ppvMessageTableResource) ||
-		(NULL == pcbMessageTableResource) ||
-		(PASSIVE_LEVEL != KeGetCurrentIrql()))
+		(NULL == pcbMessageTableResource))
 	{
 		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
