@@ -97,6 +97,7 @@
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
       <FixedBaseAddress>false</FixedBaseAddress>
       <AdditionalDependencies>DbgEng.Lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <PostBuildEvent>
       <Command>copy /y "$(SolutionDir)Binaries\$(PlatformShortName)\*.dll" "$(OutDir)"</Command>
@@ -129,6 +130,7 @@
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
       <FixedBaseAddress>false</FixedBaseAddress>
       <AdditionalDependencies>DbgEng.Lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <PostBuildEvent>
       <Command>copy /y "$(SolutionDir)Binaries\$(PlatformShortName)\*.dll" "$(OutDir)"</Command>
@@ -163,6 +165,7 @@
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <FixedBaseAddress>false</FixedBaseAddress>
       <AdditionalDependencies>DbgEng.Lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <PostBuildEvent>
       <Command>copy /y "$(SolutionDir)Binaries\$(PlatformShortName)\*.dll" "$(OutDir)"</Command>
@@ -197,6 +200,7 @@
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <FixedBaseAddress>false</FixedBaseAddress>
       <AdditionalDependencies>DbgEng.Lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <PostBuildEvent>
       <Command>copy /y "$(SolutionDir)Binaries\$(PlatformShortName)\*.dll" "$(OutDir)"</Command>
