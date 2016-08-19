@@ -103,7 +103,7 @@ vgadump_AreInterruptsEnabled(VOID)
 }
 
 /**
- * Disables interrupts.
+ * Disables interrupts on the current processor.
  */
 STATIC
 VOID
@@ -116,7 +116,7 @@ vgadump_DisableInterrupts(VOID)
 }
 
 /**
- * Enables interrupts.
+ * Enables interrupts on the current processor.
  */
 STATIC
 VOID
@@ -226,15 +226,19 @@ vgadump_DumpPalette(
 	//       using an index/data pair.
 	//
 
-	// Set the first DAC index to read from
-	__outbyte(DAC_READ_INDEX_REG, 0);
-
-	for (nEntry = 0; nEntry < VGA_DAC_PALETTE_ENTRIES; ++nEntry)
+	vgadump_DisableInterrupts();
 	{
-		ptPaletteEntries[nEntry].nRed =  __inbyte(DAC_DATA_REG);
-		ptPaletteEntries[nEntry].nGreen = __inbyte(DAC_DATA_REG);
-		ptPaletteEntries[nEntry].nBlue = __inbyte(DAC_DATA_REG);
+		// Set the first DAC index to read from
+		__outbyte(DAC_READ_INDEX_REG, 0);
+
+		for (nEntry = 0; nEntry < VGA_DAC_PALETTE_ENTRIES; ++nEntry)
+		{
+			ptPaletteEntries[nEntry].nRed =  __inbyte(DAC_DATA_REG);
+			ptPaletteEntries[nEntry].nGreen = __inbyte(DAC_DATA_REG);
+			ptPaletteEntries[nEntry].nBlue = __inbyte(DAC_DATA_REG);
+		}
 	}
+	vgadump_EnableInterrupts();
 }
 
 /**
