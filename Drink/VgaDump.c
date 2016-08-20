@@ -88,7 +88,22 @@ STATIC ULONG g_nInterruptDisableCount = 0;
 /** Functions ***********************************************************/
 
 /**
- * Disables interrupts.
+ * Determines whether interrupts are enabled
+ * on the current processor.
+ *
+ * @returns BOOLEAN
+ */
+STATIC
+BOOLEAN
+vgadump_AreInterruptsEnabled(VOID)
+{
+	// Test the IF bit.
+	// If it is set then interrupts are enabled.
+	return BooleanFlagOn(__readeflags(), 1 << 9);
+}
+
+/**
+ * Disables interrupts on the current processor.
  */
 STATIC
 VOID
@@ -101,7 +116,7 @@ vgadump_DisableInterrupts(VOID)
 }
 
 /**
- * Enables interrupts.
+ * Enables interrupts on the current processor.
  */
 STATIC
 VOID
@@ -211,15 +226,19 @@ vgadump_DumpPalette(
 	//       using an index/data pair.
 	//
 
-	// Set the first DAC index to read from
-	__outbyte(DAC_READ_INDEX_REG, 0);
-
-	for (nEntry = 0; nEntry < VGA_DAC_PALETTE_ENTRIES; ++nEntry)
+	vgadump_DisableInterrupts();
 	{
-		ptPaletteEntries[nEntry].nRed =  __inbyte(DAC_DATA_REG);
-		ptPaletteEntries[nEntry].nGreen = __inbyte(DAC_DATA_REG);
-		ptPaletteEntries[nEntry].nBlue = __inbyte(DAC_DATA_REG);
+		// Set the first DAC index to read from
+		__outbyte(DAC_READ_INDEX_REG, 0);
+
+		for (nEntry = 0; nEntry < VGA_DAC_PALETTE_ENTRIES; ++nEntry)
+		{
+			ptPaletteEntries[nEntry].nRed =  __inbyte(DAC_DATA_REG);
+			ptPaletteEntries[nEntry].nGreen = __inbyte(DAC_DATA_REG);
+			ptPaletteEntries[nEntry].nBlue = __inbyte(DAC_DATA_REG);
+		}
 	}
+	vgadump_EnableInterrupts();
 }
 
 /**
@@ -312,6 +331,12 @@ vgadump_BugCheckSecondaryDumpDataCallback(
 	ASSERT(NULL != ptRecord);
 	ASSERT(NULL != pvReasonSpecificData);
 	ASSERT(sizeof(*ptSecondaryDumpData) == cbReasonSpecificData);
+
+	// Enforce correct behaviour of vgadump_EnableInterrupts
+	// and vgadump_DisableInterrupts. If interrupts are currently
+	// disabled, set the counter to 1, so that we don't erroneously
+	// enable them on return from the callback.
+	g_nInterruptDisableCount = vgadump_AreInterruptsEnabled() ? 0 : 1;
 
 	if (sizeof(g_tDump) > ptSecondaryDumpData->MaximumAllowed)
 	{

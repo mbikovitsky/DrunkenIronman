@@ -97,6 +97,7 @@
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
       <FixedBaseAddress>false</FixedBaseAddress>
       <AdditionalDependencies>DbgEng.Lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <PostBuildEvent>
       <Command>copy /y "$(SolutionDir)Binaries\$(PlatformShortName)\*.dll" "$(OutDir)"</Command>
@@ -119,6 +120,7 @@
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <CreateHotpatchableImage>false</CreateHotpatchableImage>
       <AdditionalIncludeDirectories>$(SolutionDir)\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -128,6 +130,7 @@
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
       <FixedBaseAddress>false</FixedBaseAddress>
       <AdditionalDependencies>DbgEng.Lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <PostBuildEvent>
       <Command>copy /y "$(SolutionDir)Binaries\$(PlatformShortName)\*.dll" "$(OutDir)"</Command>
@@ -162,6 +165,7 @@
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <FixedBaseAddress>false</FixedBaseAddress>
       <AdditionalDependencies>DbgEng.Lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <PostBuildEvent>
       <Command>copy /y "$(SolutionDir)Binaries\$(PlatformShortName)\*.dll" "$(OutDir)"</Command>
@@ -186,6 +190,7 @@
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <CreateHotpatchableImage>false</CreateHotpatchableImage>
       <AdditionalIncludeDirectories>$(SolutionDir)\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -195,6 +200,7 @@
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <FixedBaseAddress>false</FixedBaseAddress>
       <AdditionalDependencies>DbgEng.Lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
     </Link>
     <PostBuildEvent>
       <Command>copy /y "$(SolutionDir)Binaries\$(PlatformShortName)\*.dll" "$(OutDir)"</Command>

@@ -23,6 +23,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Screenshot.bmp = Screenshot.bmp
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{C5300296-1498-466C-A585-9A0A14083630}"
+	ProjectSection(SolutionItems) = preProject
+		Docs\Carpenter.md = Docs\Carpenter.md
+		Docs\VgaDump.md = Docs\VgaDump.md
+		Docs\VgaDump_0.png = Docs\VgaDump_0.png
+		Docs\VgaDump_1.png = Docs\VgaDump_1.png
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -50,5 +58,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C5300296-1498-466C-A585-9A0A14083630} = {E8D478BE-82E7-426E-860F-3AF376FFEBF0}
 	EndGlobalSection
 EndGlobal
