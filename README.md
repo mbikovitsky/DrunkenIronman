@@ -5,6 +5,7 @@ Taking the Death out of the Blue Screen.
 ## Features
 - Taking screenshots of BSoDs in the wild. ([Documentation](Docs/VgaDump.md)).
 - Customizing the message displayed on the Blue Screen.
+  ([Documentation](Docs/Carpenter.md)).
 
 
 ## Usage

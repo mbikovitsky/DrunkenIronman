@@ -235,6 +235,12 @@ MESSAGETABLE_EnumerateEntries(
  *
  * @remark	The returned buffer is allocated from the _paged_ pool.
  *			Free it using ExFreePool.
+ * @remark	Any non-compacted strings in the table will be stored
+ *			as the string data + any padding as specified by
+ *			the MaximumLength field of the ANSI_STRING or UNICODE_STRING
+ *			structure. Note that the padding will _always_ be zeroes.
+ *			Any custom data past the Length of the string will be lost
+ *			on serialization.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
 PAGEABLE
