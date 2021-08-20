@@ -19,6 +19,9 @@
     <Filter Include="Carpenter">
       <UniqueIdentifier>{fce9c2bb-c5d4-463a-a58f-9c9d6830e159}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Match">
+      <UniqueIdentifier>{f8f8d732-8a56-4b1d-8678-6e10cbaee3b1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Driver.c">
@@ -39,6 +42,9 @@
     <ClCompile Include="Carpenter.c">
       <Filter>Carpenter</Filter>
     </ClCompile>
+    <ClCompile Include="Match.c">
+      <Filter>Match</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="VgaDump.h">
@@ -55,6 +61,9 @@
     </ClInclude>
     <ClInclude Include="Carpenter.h">
       <Filter>Carpenter</Filter>
+    </ClInclude>
+    <ClInclude Include="Match.h">
+      <Filter>Match</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
