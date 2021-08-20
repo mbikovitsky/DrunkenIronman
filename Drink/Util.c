@@ -67,6 +67,7 @@ UTIL_InitUnicodeStringCb(
 	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
 	size_t		cbString	= 0;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == pusOutputString)
@@ -136,6 +137,7 @@ UTIL_InitUnicodeStringCch(
 	NTSTATUS	eStatus				= STATUS_UNSUCCESSFUL;
 	SIZE_T		cbInputStringMax	= 0;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == pusOutputString)
@@ -183,6 +185,7 @@ UTIL_InitAnsiStringCb(
 	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
 	size_t		cbString	= 0;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == psOutputString)
@@ -252,6 +255,7 @@ UTIL_InitAnsiStringCch(
 	NTSTATUS	eStatus				= STATUS_UNSUCCESSFUL;
 	SIZE_T		cbInputStringMax	= 0;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == psOutputString)
@@ -301,6 +305,7 @@ UTIL_QueryModuleInformation(
 	ULONG						nModules		= 0;
 	PAUX_MODULE_EXTENDED_INFO	ptCurrentModule	= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == pptModules) ||

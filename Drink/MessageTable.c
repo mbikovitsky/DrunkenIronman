@@ -632,7 +632,7 @@ messagetable_CountingCallback(
 	_In_		PCMESSAGE_TABLE_ENTRY	ptEntry,
 	_In_opt_	PCMESSAGE_TABLE_ENTRY	ptPreviousEntry,
 	_In_		PVOID					pvContext,
-	_Out_		PBOOLEAN				pbContinueEnumeration
+	_Inout_		PBOOLEAN				pbContinueEnumeration
 )
 {
 	NTSTATUS					eStatus		= STATUS_UNSUCCESSFUL;
@@ -687,7 +687,7 @@ messagetable_SerializingCallback(
 	_In_		PCMESSAGE_TABLE_ENTRY	ptEntry,
 	_In_opt_	PCMESSAGE_TABLE_ENTRY	ptPreviousEntry,
 	_In_		PVOID					pvContext,
-	_Out_		PBOOLEAN				pbContinueEnumeration
+	_Inout_		PBOOLEAN				pbContinueEnumeration
 )
 {
 	PSERIALIZING_CALLBACK_CONTEXT	ptContext		= (PSERIALIZING_CALLBACK_CONTEXT)pvContext;
@@ -848,6 +848,7 @@ MESSAGETABLE_Create(
 	NTSTATUS		eStatus			= STATUS_UNSUCCESSFUL;
 	PMESSAGE_TABLE	ptMessageTable	= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == phMessageTable)
@@ -911,6 +912,7 @@ MESSAGETABLE_CreateFromResource(
 	ULONG						nCurrentId		= 0;
 	PCMESSAGE_RESOURCE_ENTRY	ptCurrentEntry	= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == pvMessageTableResource) ||
@@ -993,6 +995,7 @@ MESSAGETABLE_Destroy(
 	PMESSAGE_TABLE	ptMessageTable	= (PMESSAGE_TABLE)hMessageTable;
 	PVOID			pvData			= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == hMessageTable)
@@ -1049,6 +1052,7 @@ MESSAGETABLE_InsertAnsi(
 	BOOLEAN					bNewElement			= FALSE;
 	PMESSAGE_TABLE_ENTRY	ptInserted			= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
@@ -1149,6 +1153,7 @@ MESSAGETABLE_InsertUnicode(
 	BOOLEAN					bNewElement			= FALSE;
 	PMESSAGE_TABLE_ENTRY	ptInserted			= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
@@ -1249,6 +1254,7 @@ MESSAGETABLE_GetEntry(
 	USHORT					cbDuplicate		= 0;
 	PVOID					pvDuplicate		= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
@@ -1341,6 +1347,7 @@ MESSAGETABLE_EnumerateEntries(
 	PCMESSAGE_TABLE_ENTRY	ptCurrent		= NULL;
 	BOOLEAN					bContinue		= FALSE;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
@@ -1408,6 +1415,7 @@ MESSAGETABLE_Serialize(
 	PMESSAGE_RESOURCE_DATA			ptMessageData		= NULL;
 	SERIALIZING_CALLBACK_CONTEXT	tSerializingContext	= { 0 };
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||

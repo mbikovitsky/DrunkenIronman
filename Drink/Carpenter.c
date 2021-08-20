@@ -91,6 +91,7 @@ CARPENTER_Create(
 	PCARPENTER				ptCarpenter	= NULL;
 	RESOURCE_PATH_COMPONENT	atPath[3]	= { 0 };
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == pvImageBase) ||
@@ -155,6 +156,7 @@ CARPENTER_Destroy(
 {
 	PCARPENTER	ptCarpenter	= (PCARPENTER)hCarpenter;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == hCarpenter)
@@ -186,6 +188,7 @@ CARPENTER_StageMessage(
 	PCHAR					pcDuplicateString	= NULL;
 	ANSI_STRING				sDuplicateString	= { 0 };
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hCarpenter) ||
@@ -272,6 +275,7 @@ CARPENTER_ApplyPatch(
 	BOOLEAN		bMdlLocked			= FALSE;
 	PVOID		pvNewMapping		= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == hCarpenter)

@@ -93,6 +93,7 @@ AuxKlibInitialize(VOID);
  * @param[in]	ptDriverObject	Pointer to the driver object.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 STATIC
 VOID
 driver_Unload(
@@ -394,6 +395,7 @@ driver_DispatchDeviceControl(
  * @returns NTSTATUS
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+__declspec(code_seg("INIT"))
 NTSTATUS
 DriverEntry(
 	_In_	PDRIVER_OBJECT	ptDriverObject,

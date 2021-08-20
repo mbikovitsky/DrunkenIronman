@@ -57,6 +57,7 @@
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <IntDir>$(Platform)\$(ConfigurationName)\</IntDir>
     <OutDir>$(SolutionDir)$(Platform)\$(ConfigurationName)\</OutDir>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
     <ClCompile>

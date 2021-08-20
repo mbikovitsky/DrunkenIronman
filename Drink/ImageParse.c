@@ -351,7 +351,7 @@ IMAGEPARSE_GetSection(
 		 ptCurrentSection < IMAGE_FIRST_SECTION(ptNtHeaders) + ptNtHeaders->FileHeader.NumberOfSections;
 		 ++ptCurrentSection)
 	{
-		eStatus = UTIL_InitAnsiStringCb(ptCurrentSection->Name,
+		eStatus = UTIL_InitAnsiStringCb((PCHAR)(ptCurrentSection->Name),
 										sizeof(ptCurrentSection->Name),
 										&sCurrentSectionName);
 		if (!NT_SUCCESS(eStatus))
