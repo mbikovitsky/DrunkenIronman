@@ -87,3 +87,21 @@ IMAGEPARSE_FindResource(
 	_Outptr_result_bytebuffer_(*pcbResourceData)	PVOID *						ppvResourceData,
 	_Out_											PULONG						pcbResourceData
 );
+
+/**
+ * Retrieves the address and size of a section within a mapped image.
+ *
+ * @param[in]	pvImageBase		Base of the mapped image.
+ * @param[in]	psSectionName	Name of the section to find.
+ * @param[out]	ppvSection		Will receive the address of the section, if found.
+ * @param[out]	pcbSection		Will receive the size of the section, if found.
+ *
+ * @returns NTSTATUS
+ */
+NTSTATUS
+IMAGEPARSE_GetSection(
+	_In_									PVOID			pvImageBase,
+	_In_									PANSI_STRING	psSectionName,
+	_Outptr_result_bytebuffer_(*pcbSection)	PVOID *			ppvSection,
+	_Out_									PULONG			pcbSection
+);
