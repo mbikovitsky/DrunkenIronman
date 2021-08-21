@@ -198,9 +198,12 @@ lblCleanup:
 
 HRESULT
 DRINKCONTROL_ControlDriver(
-	_In_								DWORD	eControlCode,
-	_In_reads_bytes_opt_(cbInputBuffer)	PVOID	pvInputBuffer,
-	_In_								DWORD	cbInputBuffer
+	DWORD	eControlCode,
+	PVOID	pvInputBuffer,
+	DWORD	cbInputBuffer,
+	PVOID	pvOutputBuffer,
+	DWORD	cbOutputBuffer,
+	PDWORD	pcbWritten
 )
 {
 	HRESULT	hrResult		= E_FAIL;
@@ -226,7 +229,7 @@ DRINKCONTROL_ControlDriver(
 	if (!DeviceIoControl(hDrinkDevice,
 						 eControlCode,
 						 pvInputBuffer, cbInputBuffer,
-						 NULL, 0,
+						 pvOutputBuffer, cbOutputBuffer,
 						 &cbReturned,
 						 NULL))
 	{
@@ -236,6 +239,11 @@ DRINKCONTROL_ControlDriver(
 	}
 
 	PROGRESS("Control code sent.");
+
+	if (NULL != pcbWritten)
+	{
+		*pcbWritten = cbReturned;
+	}
 
 	hrResult = S_OK;
 

@@ -400,7 +400,8 @@ main_HandleBugshot(
 	PROGRESS("Registering callback to take a bugcheck snapshot.");
 
 	hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_BUGSHOT,
-										  NULL, 0);
+										  NULL, 0,
+										  NULL, 0, NULL);
 	if (FAILED(hrResult))
 	{
 		PROGRESS("Failed registering for snapshot.");
@@ -483,7 +484,9 @@ main_HandleVanity(
 
 	// Adventure time.
 	PROGRESS("Adventure time.");
-	hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_VANITY, pszFormatted, cbFormatted);
+	hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_VANITY, 
+										  pszFormatted, cbFormatted, 
+										  NULL, 0, NULL);
 	if (FAILED(hrResult))
 	{
 		goto lblCleanup;
