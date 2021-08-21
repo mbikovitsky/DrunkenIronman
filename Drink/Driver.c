@@ -15,6 +15,7 @@
 #include "Util.h"
 #include "VgaDump.h"
 #include "Carpenter.h"
+#include "QRPatch.h"
 
 
 /** Macros **************************************************************/
@@ -332,6 +333,65 @@ lblCleanup:
 }
 
 /**
+ * Handles IOCTL_DRINK_QR_INFO.
+ *
+ * @param[in]	pvOutputBuffer	The IOCTLs output buffer.
+ * @param[in]	cbOutputBuffer	Size of the output buffer, in bytes.
+ * @param[out]	pcbWritten		Will receive the amount of bytes written to the output buffer.
+ *
+ * @returns NTSTATUS
+ */
+_IRQL_requires_max_(DISPATCH_LEVEL)
+STATIC
+NTSTATUS
+driver_HandleQrInfo(
+	_In_	PVOID	pvOutputBuffer,
+	_In_	ULONG	cbOutputBuffer,
+	_Out_	PULONG	pcbWritten
+)
+{
+	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
+	BITMAP_INFO	tBitmapInfo	= { 0 };
+	QR_INFO		tQrInfo		= { 0 };
+
+	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
+
+	NT_ASSERT(NULL != pcbWritten);
+
+	*pcbWritten = 0;
+
+	if (!UTIL_IsWindows10OrGreater())
+	{
+		eStatus = STATUS_NOT_SUPPORTED;
+		goto lblCleanup;
+	}
+
+	if (cbOutputBuffer < sizeof(tQrInfo))
+	{
+		eStatus = STATUS_BUFFER_TOO_SMALL;
+		goto lblCleanup;
+	}
+
+	eStatus = QRPATCH_GetBitmapInfo(&tBitmapInfo);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	tQrInfo.nWidth = tBitmapInfo.nWidth;
+	tQrInfo.nHeight = tBitmapInfo.nHeight;
+	tQrInfo.nBitCount = tBitmapInfo.nBitCount;
+
+	RtlMoveMemory(pvOutputBuffer, &tQrInfo, sizeof(tQrInfo));
+	*pcbWritten = sizeof(tQrInfo);
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	return eStatus;
+}
+
+/**
  * Handler for IRP_MJ_DEVICE_CONTROL requests.
  *
  * @param[in]	ptDeviceObject	The device object.
@@ -349,14 +409,15 @@ driver_DispatchDeviceControl(
 {
 	NTSTATUS			eStatus			= STATUS_UNSUCCESSFUL;
 	PIO_STACK_LOCATION	ptStackLocation	= NULL;
+	ULONG				cbWritten		= 0;
 
 #ifndef DBG
 	UNREFERENCED_PARAMETER(ptDeviceObject);
 #endif // !DBG
 
-	ASSERT(NULL != ptDeviceObject);
-	ASSERT(NULL != ptIrp);
-	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
+	NT_ASSERT(NULL != ptDeviceObject);
+	NT_ASSERT(NULL != ptIrp);
+	NT_ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
 
 	ptStackLocation = IoGetCurrentIrpStackLocation(ptIrp);
 	ASSERT(NULL != ptStackLocation);
@@ -373,6 +434,12 @@ driver_DispatchDeviceControl(
 		ASSERT(!NT_SUCCESS(eStatus));	// The above call returns only on failure.
 		break;
 
+	case IOCTL_DRINK_QR_INFO:
+		eStatus = driver_HandleQrInfo(ptIrp->AssociatedIrp.SystemBuffer,
+									  ptStackLocation->Parameters.DeviceIoControl.OutputBufferLength,
+									  &cbWritten);
+		break;
+
 	default:
 		eStatus = STATUS_INVALID_DEVICE_REQUEST;
 		break;
@@ -381,7 +448,7 @@ driver_DispatchDeviceControl(
 	// Keep last status
 
 //lblCleanup:
-	COMPLETE_IRP(ptIrp, eStatus, 0, IO_NO_INCREMENT);
+	COMPLETE_IRP(ptIrp, eStatus, cbWritten, IO_NO_INCREMENT);
 	return eStatus;
 }
 
@@ -423,6 +490,15 @@ DriverEntry(
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
+	}
+
+	if (UTIL_IsWindows10OrGreater())
+	{
+		eStatus = QRPATCH_Initialize();
+		if (!NT_SUCCESS(eStatus))
+		{
+			goto lblCleanup;
+		}
 	}
 
 	//

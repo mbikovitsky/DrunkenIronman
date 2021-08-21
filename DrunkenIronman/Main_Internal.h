@@ -76,6 +76,18 @@ typedef enum _SUBFUNCTION_VANITY_ARGS
 	SUBFUNCTION_VANITY_ARGS_COUNT
 } SUBFUNCTION_VANITY_ARGS, *PSUBFUNCTION_VANITY_ARGS;
 
+/**
+ * Command line argument positions for the "qr" subfunction.
+ */
+typedef enum _SUBFUNCTION_QR_ARGS
+{
+	SUBFUNCTION_QR_ARG_IMAGE = 0,
+
+	// Must be last:
+	SUBFUNCTION_QR_ARGS_COUNT
+} SUBFUNCTION_QR_ARGS, *PSUBFUNCTION_QR_ARGS;
+typedef SUBFUNCTION_QR_ARGS CONST *PCSUBFUNCTION_QR_ARGS;
+
 
 /** Typedefs ************************************************************/
 
@@ -264,4 +276,21 @@ HRESULT
 main_HandleVanity(
 	_In_					INT				nArguments,
 	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
+);
+
+/**
+ * Handler for the "qr" subfunction.
+ *
+ * @param[in]	nArguments		Number of command line arguments.
+ * @param[in]	ppwszArguments	The command line arguments.
+ *
+ * @returns HRESULT
+ *
+ * @see SUBFUNCTION_QR_ARGS
+*/
+STATIC
+HRESULT
+main_HandleQr(
+	_In_					INT				nArguments,
+	_In_reads_(nArguments)	PCWSTR CONST *	ppwszArguments
 );

@@ -57,6 +57,11 @@ STATIC CONST SUBFUNCTION_HANDLER_ENTRY g_atSubfunctionHandlers[] = {
 		L"vanity",
 		&main_HandleVanity
 	},
+
+	{
+		L"qr",
+		&main_HandleQr
+	}
 };
 
 
@@ -101,6 +106,9 @@ main_PrintUsage(VOID)
 
 	(VOID)fwprintf(stderr,
 				   L"  vanity string\n    Crashes the system and displays the specified string\n    on the BSoD.\n");
+
+	(VOID)fwprintf(stderr,
+				   L"  qr\n    Displays the dimensions of the QR image.\n");
 
 	(VOID)fwprintf(stderr, L"\n");
 
@@ -498,6 +506,60 @@ lblCleanup:
 	HEAPFREE(pszFormatted);
 
 	PROGRESS("Returning 0x%lX", hrResult);
+	return hrResult;
+}
+
+_Use_decl_annotations_
+STATIC
+HRESULT
+main_HandleQr(
+	INT				nArguments,
+	PCWSTR CONST *	ppwszArguments
+)
+{
+	HRESULT	hrResult	= E_FAIL;
+	QR_INFO	tInfo		= { 0 };
+	DWORD	cbReturned	= 0;
+
+	UNREFERENCED_PARAMETER(ppwszArguments);
+
+	if (0 == nArguments)
+	{
+		PROGRESS("Retrieving QR bitmap information.");
+
+		hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_QR_INFO,
+											NULL, 0,
+											&tInfo, sizeof(tInfo), &cbReturned);
+		if (FAILED(hrResult))
+		{
+			PROGRESS("Failed retrieving information.");
+			goto lblCleanup;
+		}
+
+		if (cbReturned < sizeof(tInfo))
+		{
+			PROGRESS("Returned buffer is unexpectedly small.");
+		}
+		assert(sizeof(tInfo) == cbReturned);
+
+		PROGRESS("QR bitmap is %lux%lu@%lubpp", tInfo.nWidth, tInfo.nHeight, tInfo.nBitCount);
+	}
+	else if (SUBFUNCTION_QR_ARGS_COUNT == nArguments)
+	{
+		PROGRESS("Not implemented");
+		hrResult = E_NOTIMPL;
+		goto lblCleanup;
+	}
+	else
+	{
+		PROGRESS("Invalid number of arguments specified.");
+		hrResult = E_INVALIDARG;
+		goto lblCleanup;
+	}
+
+	hrResult = S_OK;
+
+lblCleanup:
 	return hrResult;
 }
 

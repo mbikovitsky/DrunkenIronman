@@ -109,6 +109,7 @@
     <ClCompile Include="ImageParse.c" />
     <ClCompile Include="Match.c" />
     <ClCompile Include="MessageTable.c" />
+    <ClCompile Include="QRPatch.c" />
     <ClCompile Include="Util.c" />
     <ClCompile Include="VgaDump.c" />
   </ItemGroup>
@@ -117,6 +118,7 @@
     <ClInclude Include="ImageParse.h" />
     <ClInclude Include="Match.h" />
     <ClInclude Include="MessageTable.h" />
+    <ClInclude Include="QRPatch.h" />
     <ClInclude Include="Util.h" />
     <ClInclude Include="VgaDump.h" />
   </ItemGroup>
