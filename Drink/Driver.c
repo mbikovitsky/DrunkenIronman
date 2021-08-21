@@ -241,6 +241,10 @@ driver_HandleVanity(
 	NTSTATUS					eStatus			= STATUS_UNSUCCESSFUL;
 	BOOLEAN						bLockAcquired	= FALSE;
 	ANSI_STRING					sInputString	= { 0 };
+	PSYSTEM_BIGPOOL_INFORMATION	ptBigPoolInfo	= NULL;
+	PVOID						pvMessageTable	= NULL;
+	ULONG						cbMessageTable	= 0;
+	ULONG						nIndex			= 0;
 	PAUX_MODULE_EXTENDED_INFO	ptModules		= NULL;
 	ULONG						nModules		= 0;
 	HCARPENTER					hCarpenter		= NULL;
@@ -277,22 +281,66 @@ driver_HandleVanity(
 		goto lblCleanup;
 	}
 
-	// Obtain a list of loaded drivers.
-	eStatus = UTIL_QueryModuleInformation(&ptModules, &nModules);
-	if (!NT_SUCCESS(eStatus))
+	if (UTIL_IsWindows10OrGreater())
 	{
-		goto lblCleanup;
-	}
+		// In Windows 10 the message table is copied to the pool.
 
-	// Prepare to patch the message table of ntoskrnl.exe.
-	eStatus = CARPENTER_Create(ptModules[0].tBasicInfo.pvImageBase,
-							   RT_MESSAGETABLE,
-							   1,
-							   MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
-							   &hCarpenter);
-	if (!NT_SUCCESS(eStatus))
+		eStatus = UTIL_QuerySystemInformation(SystemBigPoolInformation, (PVOID *)&ptBigPoolInfo, NULL);
+		if (!NT_SUCCESS(eStatus))
+		{
+			goto lblCleanup;
+		}
+
+		for (nIndex = 0; nIndex < ptBigPoolInfo->Count; ++nIndex)
+		{
+			if ('cBiK' == ptBigPoolInfo->AllocatedInfo[nIndex].TagUlong)
+			{
+				if (ptBigPoolInfo->AllocatedInfo[nIndex].SizeInBytes > MAXULONG)
+				{
+					continue;
+				}
+
+				if (NULL != pvMessageTable)
+				{
+					eStatus = STATUS_MULTIPLE_FAULT_VIOLATION;
+					goto lblCleanup;
+				}
+
+				pvMessageTable = (PVOID)((ULONG_PTR)(ptBigPoolInfo->AllocatedInfo[nIndex].VirtualAddress) & (~(ULONG_PTR)1));
+				cbMessageTable = (ULONG)ptBigPoolInfo->AllocatedInfo[nIndex].SizeInBytes;
+			}
+		}
+		if (NULL == pvMessageTable)
+		{
+			eStatus = STATUS_NOT_FOUND;
+			goto lblCleanup;
+		}
+
+		eStatus = CARPENTER_CreateFromResource(pvMessageTable, cbMessageTable, &hCarpenter);
+		if (!NT_SUCCESS(eStatus))
+		{
+			goto lblCleanup;
+		}
+	}
+	else
 	{
-		goto lblCleanup;
+		// Obtain a list of loaded drivers.
+		eStatus = UTIL_QueryModuleInformation(&ptModules, &nModules);
+		if (!NT_SUCCESS(eStatus))
+		{
+			goto lblCleanup;
+		}
+
+		// Prepare to patch the message table of ntoskrnl.exe.
+		eStatus = CARPENTER_Create(ptModules[0].tBasicInfo.pvImageBase,
+								   RT_MESSAGETABLE,
+								   1,
+								   MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
+								   &hCarpenter);
+		if (!NT_SUCCESS(eStatus))
+		{
+			goto lblCleanup;
+		}
 	}
 
 	// Insert the caller-supplied message.
@@ -323,6 +371,7 @@ driver_HandleVanity(
 lblCleanup:
 	CLOSE(hCarpenter, CARPENTER_Destroy);
 	CLOSE(ptModules, ExFreePool);
+	CLOSE(ptBigPoolInfo, ExFreePool);
 	if (bLockAcquired)
 	{
 		(VOID)KeReleaseMutex(&g_tVanityLock, FALSE);
