@@ -58,6 +58,16 @@ typedef struct _AUX_MODULE_EXTENDED_INFO
 /** Functions ***********************************************************/
 
 /**
+ * @brief Determines whether this system is Windows 10 or greater.
+ *
+ * @return BOOLEAN
+*/
+_IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
+BOOLEAN
+UTIL_IsWindows10OrGreater(VOID);
+
+/**
  * Initializes a UNICODE_STRING structure.
  *
  * @param[in]	pwcInputString		Buffer to initialize with.

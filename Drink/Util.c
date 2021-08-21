@@ -55,6 +55,31 @@ AuxKlibQueryModuleInformation(
 
 /** Functions ***********************************************************/
 
+_Use_decl_annotations_
+PAGEABLE
+BOOLEAN
+UTIL_IsWindows10OrGreater(VOID)
+{
+	NTSTATUS				eStatus			= STATUS_UNSUCCESSFUL;
+	RTL_OSVERSIONINFOEXW	tVersionInfo	= { 0 };
+	ULONGLONG				fConditionMask	= 0;
+
+	PAGED_CODE();
+	NT_ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
+
+	tVersionInfo.dwMajorVersion = 10;
+	tVersionInfo.dwMinorVersion = 0;
+
+	VER_SET_CONDITION(fConditionMask, VER_MAJORVERSION, VER_GREATER_EQUAL);
+	VER_SET_CONDITION(fConditionMask, VER_MINORVERSION, VER_GREATER_EQUAL);
+
+	eStatus = RtlVerifyVersionInfo(&tVersionInfo, VER_MAJORVERSION | VER_MINORVERSION, fConditionMask);
+	NT_ASSERT(STATUS_SUCCESS == eStatus || STATUS_REVISION_MISMATCH == eStatus);
+	C_ASSERT(!NT_SUCCESS(STATUS_REVISION_MISMATCH));
+
+	return NT_SUCCESS(eStatus);
+}
+
 _IRQL_requires_(PASSIVE_LEVEL)
 PAGEABLE
 NTSTATUS
