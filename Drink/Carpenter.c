@@ -91,6 +91,7 @@ CARPENTER_Create(
 	PCARPENTER				ptCarpenter	= NULL;
 	RESOURCE_PATH_COMPONENT	atPath[3]	= { 0 };
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == pvImageBase) ||
@@ -146,6 +147,64 @@ lblCleanup:
 	return eStatus;
 }
 
+_Use_decl_annotations_
+PAGEABLE
+NTSTATUS
+CARPENTER_CreateFromResource(
+	PVOID		pvMessageTableResource,
+	ULONG		cbMessageTableResource,
+	PHCARPENTER	phCarpenter
+)
+{
+	NTSTATUS				eStatus		= STATUS_UNSUCCESSFUL;
+	PCARPENTER				ptCarpenter	= NULL;
+
+	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
+
+	if ((NULL == pvMessageTableResource) ||
+		(0 == cbMessageTableResource) ||
+		(NULL == phCarpenter))
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	ptCarpenter = (PCARPENTER)ExAllocatePoolWithTag(PagedPool,
+													sizeof(*ptCarpenter),
+													CARPENTER_POOL_TAG);
+	if (NULL == ptCarpenter)
+	{
+		eStatus = STATUS_INSUFFICIENT_RESOURCES;
+		goto lblCleanup;
+	}
+	RtlSecureZeroMemory(ptCarpenter, sizeof(*ptCarpenter));
+
+	eStatus = MESSAGETABLE_CreateFromResource(pvMessageTableResource,
+											  cbMessageTableResource,
+											  FALSE,
+											  &(ptCarpenter->hMessageTable));
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	ptCarpenter->pvInImageMessageTable = pvMessageTableResource;
+	ptCarpenter->cbInImageMessageTable = cbMessageTableResource;
+
+	// Transfer ownership:
+	*phCarpenter = (HCARPENTER)ptCarpenter;
+	ptCarpenter = NULL;
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+#pragma warning(suppress: 4133)	// warning C4133: 'function': incompatible types - from 'PCARPENTER' to 'HCARPENTER'
+	CLOSE(ptCarpenter, CARPENTER_Destroy);
+
+	return eStatus;
+}
+
 _IRQL_requires_(PASSIVE_LEVEL)
 PAGEABLE
 VOID
@@ -155,6 +214,7 @@ CARPENTER_Destroy(
 {
 	PCARPENTER	ptCarpenter	= (PCARPENTER)hCarpenter;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == hCarpenter)
@@ -186,6 +246,7 @@ CARPENTER_StageMessage(
 	PCHAR					pcDuplicateString	= NULL;
 	ANSI_STRING				sDuplicateString	= { 0 };
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hCarpenter) ||
@@ -257,11 +318,12 @@ lblCleanup:
 	return eStatus;
 }
 
-_IRQL_requires_(PASSIVE_LEVEL)
+_Use_decl_annotations_
 PAGEABLE
 NTSTATUS
 CARPENTER_ApplyPatch(
-	_In_	HCARPENTER	hCarpenter
+	HCARPENTER	hCarpenter,
+	BOOLEAN		bEnforceOriginalSize
 )
 {
 	NTSTATUS	eStatus				= STATUS_UNSUCCESSFUL;
@@ -272,6 +334,7 @@ CARPENTER_ApplyPatch(
 	BOOLEAN		bMdlLocked			= FALSE;
 	PVOID		pvNewMapping		= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == hCarpenter)
@@ -288,10 +351,21 @@ CARPENTER_ApplyPatch(
 	}
 
 	// Make sure the new table has the same size as the old one.
-	if (cbNewMessageTable != ptCarpenter->cbInImageMessageTable)
+	if (bEnforceOriginalSize)
 	{
-		eStatus = STATUS_BUFFER_TOO_SMALL;
-		goto lblCleanup;
+		if (cbNewMessageTable != ptCarpenter->cbInImageMessageTable)
+		{
+			eStatus = STATUS_BUFFER_TOO_SMALL;
+			goto lblCleanup;
+		}
+	}
+	else
+	{
+		if (cbNewMessageTable > ptCarpenter->cbInImageMessageTable)
+		{
+			eStatus = STATUS_BUFFER_TOO_SMALL;
+			goto lblCleanup;
+		}
 	}
 
 	ptMdl = IoAllocateMdl(ptCarpenter->pvInImageMessageTable,

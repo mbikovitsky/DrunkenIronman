@@ -95,7 +95,7 @@ typedef struct _SERIALIZING_CALLBACK_CONTEXT
 {
 	PMESSAGE_RESOURCE_DATA	ptMessageData;
 
-	ULONG					nCurrentBlock;
+	PMESSAGE_RESOURCE_BLOCK	ptCurrentBlock;
 
 	PUCHAR					pcCurrentStringPosition;
 } SERIALIZING_CALLBACK_CONTEXT, *PSERIALIZING_CALLBACK_CONTEXT;
@@ -632,7 +632,7 @@ messagetable_CountingCallback(
 	_In_		PCMESSAGE_TABLE_ENTRY	ptEntry,
 	_In_opt_	PCMESSAGE_TABLE_ENTRY	ptPreviousEntry,
 	_In_		PVOID					pvContext,
-	_Out_		PBOOLEAN				pbContinueEnumeration
+	_Inout_		PBOOLEAN				pbContinueEnumeration
 )
 {
 	NTSTATUS					eStatus		= STATUS_UNSUCCESSFUL;
@@ -687,11 +687,10 @@ messagetable_SerializingCallback(
 	_In_		PCMESSAGE_TABLE_ENTRY	ptEntry,
 	_In_opt_	PCMESSAGE_TABLE_ENTRY	ptPreviousEntry,
 	_In_		PVOID					pvContext,
-	_Out_		PBOOLEAN				pbContinueEnumeration
+	_Inout_		PBOOLEAN				pbContinueEnumeration
 )
 {
 	PSERIALIZING_CALLBACK_CONTEXT	ptContext		= (PSERIALIZING_CALLBACK_CONTEXT)pvContext;
-	PMESSAGE_RESOURCE_BLOCK			ptCurrentBlock	= NULL;
 	PMESSAGE_RESOURCE_ENTRY			ptCurrentEntry	= NULL;
 
 	PAGED_CODE();
@@ -705,9 +704,6 @@ messagetable_SerializingCallback(
 	ASSERT(NULL != pbContinueEnumeration);
 	ASSERT(*pbContinueEnumeration);
 
-	// Obtain a pointer to the current block header
-	ptCurrentBlock = &(ptContext->ptMessageData->atBlocks[ptContext->nCurrentBlock]);
-
 	// If there is a new block, set it up
 	if ((NULL == ptPreviousEntry) ||
 		(1 != ptEntry->nEntryId - ptPreviousEntry->nEntryId))
@@ -716,19 +712,17 @@ messagetable_SerializingCallback(
 		// New block!
 		//
 
-		// Safe to increment the counter because we already
+		// Safe to increment the pointer because we already
 		// ASSERTed the block count inside messagetable_CountingCallback.
-		++(ptContext->nCurrentBlock);
+		++ptContext->ptCurrentBlock;
 
-		++ptCurrentBlock;
-
-		ptCurrentBlock->nLowId = ptEntry->nEntryId;
-		ptCurrentBlock->cbOffsetToEntries = RtlPointerToOffset(ptContext->ptMessageData,
-															   ptContext->pcCurrentStringPosition);
+		ptContext->ptCurrentBlock->nLowId = ptEntry->nEntryId;
+		ptContext->ptCurrentBlock->cbOffsetToEntries = RtlPointerToOffset(ptContext->ptMessageData,
+																		  ptContext->pcCurrentStringPosition);
 	}
 
 	// Update the last ID for the current block
-	ptCurrentBlock->nHighId = ptEntry->nEntryId;
+	ptContext->ptCurrentBlock->nHighId = ptEntry->nEntryId;
 
 	// Copy
 	ptCurrentEntry = (PMESSAGE_RESOURCE_ENTRY)(ptContext->pcCurrentStringPosition);
@@ -848,6 +842,7 @@ MESSAGETABLE_Create(
 	NTSTATUS		eStatus			= STATUS_UNSUCCESSFUL;
 	PMESSAGE_TABLE	ptMessageTable	= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == phMessageTable)
@@ -911,6 +906,7 @@ MESSAGETABLE_CreateFromResource(
 	ULONG						nCurrentId		= 0;
 	PCMESSAGE_RESOURCE_ENTRY	ptCurrentEntry	= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == pvMessageTableResource) ||
@@ -993,6 +989,7 @@ MESSAGETABLE_Destroy(
 	PMESSAGE_TABLE	ptMessageTable	= (PMESSAGE_TABLE)hMessageTable;
 	PVOID			pvData			= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == hMessageTable)
@@ -1049,6 +1046,7 @@ MESSAGETABLE_InsertAnsi(
 	BOOLEAN					bNewElement			= FALSE;
 	PMESSAGE_TABLE_ENTRY	ptInserted			= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
@@ -1149,6 +1147,7 @@ MESSAGETABLE_InsertUnicode(
 	BOOLEAN					bNewElement			= FALSE;
 	PMESSAGE_TABLE_ENTRY	ptInserted			= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
@@ -1249,6 +1248,7 @@ MESSAGETABLE_GetEntry(
 	USHORT					cbDuplicate		= 0;
 	PVOID					pvDuplicate		= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
@@ -1341,6 +1341,7 @@ MESSAGETABLE_EnumerateEntries(
 	PCMESSAGE_TABLE_ENTRY	ptCurrent		= NULL;
 	BOOLEAN					bContinue		= FALSE;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
@@ -1408,6 +1409,7 @@ MESSAGETABLE_Serialize(
 	PMESSAGE_RESOURCE_DATA			ptMessageData		= NULL;
 	SERIALIZING_CALLBACK_CONTEXT	tSerializingContext	= { 0 };
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == hMessageTable) ||
@@ -1459,7 +1461,7 @@ MESSAGETABLE_Serialize(
 
 	// Serialize
 	tSerializingContext.ptMessageData = ptMessageData;
-	tSerializingContext.nCurrentBlock = (ULONG)-1;
+	tSerializingContext.ptCurrentBlock = &ptMessageData->atBlocks[-1];
 	tSerializingContext.pcCurrentStringPosition = (PUCHAR)RtlOffsetToPointer(tSerializingContext.ptMessageData,
 																			 cbHeader);
 	eStatus = MESSAGETABLE_EnumerateEntries(hMessageTable,

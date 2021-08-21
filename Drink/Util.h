@@ -54,8 +54,55 @@ typedef struct _AUX_MODULE_EXTENDED_INFO
 	UCHAR					acFullPathName[AUX_KLIB_MODULE_PATH_LEN];
 } AUX_MODULE_EXTENDED_INFO, *PAUX_MODULE_EXTENDED_INFO;
 
+#pragma warning(push)
+#pragma warning(disable: 4201)	// nonstandard extension used: nameless struct/union
+typedef struct _SYSTEM_BIGPOOL_ENTRY
+{
+	union
+	{
+		PVOID		VirtualAddress;
+		ULONG_PTR	NonPaged : 1;
+	};
+
+	ULONG_PTR	SizeInBytes;
+
+	union
+	{
+		UCHAR	Tag[4];
+		ULONG	TagUlong;
+	};
+} SYSTEM_BIGPOOL_ENTRY, *PSYSTEM_BIGPOOL_ENTRY;
+typedef SYSTEM_BIGPOOL_ENTRY CONST *PCSYSTEM_BIGPOOL_ENTRY;
+#pragma warning(pop)
+
+typedef struct _SYSTEM_BIGPOOL_INFORMATION
+{
+	ULONG					Count;
+	SYSTEM_BIGPOOL_ENTRY	AllocatedInfo[ANYSIZE_ARRAY];
+} SYSTEM_BIGPOOL_INFORMATION, *PSYSTEM_BIGPOOL_INFORMATION;
+typedef SYSTEM_BIGPOOL_INFORMATION CONST *PCSYSTEM_BIGPOOL_INFORMATION;
+
+
+/** Enums ***************************************************************/
+
+typedef enum _SYSTEM_INFORMATION_CLASS
+{
+	SystemBigPoolInformation = 0x42,
+} SYSTEM_INFORMATION_CLASS, *PSYSTEM_INFORMATION_CLASS;
+typedef SYSTEM_INFORMATION_CLASS CONST *PCSYSTEM_INFORMATION_CLASS;
+
 
 /** Functions ***********************************************************/
+
+/**
+ * @brief Determines whether this system is Windows 10 or greater.
+ *
+ * @return BOOLEAN
+*/
+_IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
+BOOLEAN
+UTIL_IsWindows10OrGreater(VOID);
 
 /**
  * Initializes a UNICODE_STRING structure.
@@ -155,4 +202,13 @@ NTSTATUS
 UTIL_QueryModuleInformation(
 	_Outptr_result_buffer_(*pnModules)	PAUX_MODULE_EXTENDED_INFO *	pptModules,
 	_Out_								PULONG						pnModules
+);
+
+_IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
+NTSTATUS
+UTIL_QuerySystemInformation(
+	_In_										SYSTEM_INFORMATION_CLASS	eInfoClass,
+	_Outptr_result_bytebuffer_(*pcbInformation)	PVOID *						ppvInformation,
+	_Out_opt_									PULONG						pcbInformation
 );

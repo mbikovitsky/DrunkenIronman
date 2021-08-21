@@ -172,3 +172,21 @@ UTIL_DuplicateStringUnicodeToAnsi(
 	_In_		PCWSTR	pwszSource,
 	_Outptr_	PSTR *	ppszDestination
 );
+
+/**
+ * @brief Reads a whole file into memory.
+ *
+ * @param[in]	pwszFilename	Name of the file to read.
+ * @param[out]	ppvFileContents Will receive the file data.
+ * @param[out]	pcbFileContents Will receive the size of the returned buffer, in bytes.
+ *
+ * @return HRESULT
+ *
+ * @remark Free the returned buffer to the process heap.
+*/
+HRESULT
+UTIL_ReadFile(
+	_In_											PCWSTR	pwszFilename,
+	_Outptr_result_bytebuffer_(*pcbFileContents)	PVOID *	ppvFileContents,
+	_Out_											PSIZE_T	pcbFileContents
+);

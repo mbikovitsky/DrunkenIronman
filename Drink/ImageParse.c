@@ -9,6 +9,7 @@
 /** Headers *************************************************************/
 #include <ntifs.h>
 #include <ntimage.h>
+#include <ntstrsafe.h>
 
 #include "Util.h"
 
@@ -314,6 +315,66 @@ IMAGEPARSE_FindResource(
 	*ppvResourceData = RtlOffsetToPointer(pvImageBase, cbResourceDataRva);
 
 	// Keep last status
+
+lblCleanup:
+	return eStatus;
+}
+
+_Use_decl_annotations_
+NTSTATUS
+IMAGEPARSE_GetSection(
+	PVOID			pvImageBase,
+	PANSI_STRING	psSectionName,
+	PVOID *			ppvSection,
+	PULONG			pcbSection
+)
+{
+	NTSTATUS				eStatus				= STATUS_UNSUCCESSFUL;
+	PIMAGE_NT_HEADERS		ptNtHeaders			= NULL;
+	PIMAGE_SECTION_HEADER	ptCurrentSection	= NULL;
+	ANSI_STRING				sCurrentSectionName	= { 0 };
+	BOOLEAN					bFound				= FALSE;
+
+	if (NULL == pvImageBase || NULL == psSectionName || NULL == ppvSection || NULL == pcbSection)
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	eStatus = IMAGEPARSE_GetNtHeaders(pvImageBase, &ptNtHeaders, NULL);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	for (ptCurrentSection = IMAGE_FIRST_SECTION(ptNtHeaders);
+		 ptCurrentSection < IMAGE_FIRST_SECTION(ptNtHeaders) + ptNtHeaders->FileHeader.NumberOfSections;
+		 ++ptCurrentSection)
+	{
+		eStatus = UTIL_InitAnsiStringCb((PCHAR)(ptCurrentSection->Name),
+										sizeof(ptCurrentSection->Name),
+										&sCurrentSectionName);
+		if (!NT_SUCCESS(eStatus))
+		{
+			goto lblCleanup;
+		}
+
+		if (RtlEqualString(psSectionName, &sCurrentSectionName, FALSE))
+		{
+			bFound = TRUE;
+			break;
+		}
+	}
+	if (!bFound)
+	{
+		eStatus = STATUS_NOT_FOUND;
+		goto lblCleanup;
+	}
+
+	*ppvSection = RtlOffsetToPointer(pvImageBase, ptCurrentSection->VirtualAddress);
+	*pcbSection = ptCurrentSection->Misc.VirtualSize;
+
+	eStatus = STATUS_SUCCESS;
 
 lblCleanup:
 	return eStatus;

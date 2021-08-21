@@ -76,15 +76,20 @@ typedef enum _SUBFUNCTION_VANITY_ARGS
 	SUBFUNCTION_VANITY_ARGS_COUNT
 } SUBFUNCTION_VANITY_ARGS, *PSUBFUNCTION_VANITY_ARGS;
 
+/**
+ * Command line argument positions for the "qr" subfunction.
+ */
+typedef enum _SUBFUNCTION_QR_ARGS
+{
+	SUBFUNCTION_QR_ARG_IMAGE = 0,
+
+	// Must be last:
+	SUBFUNCTION_QR_ARGS_COUNT
+} SUBFUNCTION_QR_ARGS, *PSUBFUNCTION_QR_ARGS;
+typedef SUBFUNCTION_QR_ARGS CONST *PCSUBFUNCTION_QR_ARGS;
+
 
 /** Typedefs ************************************************************/
-
-/**
- * Prints out the usage of the application.
- */
-STATIC
-VOID
-main_PrintUsage(VOID);
 
 /**
  * Subfunction handler prototype.
@@ -133,6 +138,13 @@ typedef CONST VGA_BITMAP *PCVGA_BITMAP;
 /** Functions ***********************************************************/
 
 /**
+ * Prints out the usage of the application.
+ */
+STATIC
+VOID
+main_PrintUsage(VOID);
+
+/**
  * Converts a VGA's DAC color (6-bit) to an RGB value (8-bit).
  * This function operates on a single color!
  *
@@ -176,6 +188,38 @@ HRESULT
 main_VgaDumpToBitmap(
 	_In_		PCVGA_DUMP		ptDump,
 	_Outptr_	PVGA_BITMAP *	pptBitmap
+);
+
+/**
+ * @brief Gets the current QR bitmap information.
+ *
+ * @param[out] ptInfo Will receive the info.
+ *
+ * @return HRESULT
+*/
+STATIC
+HRESULT
+main_GetQrInfo(
+	_Out_	PQR_INFO	ptInfo
+);
+
+/**
+ * @brief Converts a bitmap file to be used as a bugcheck QR image.
+ *
+ * @param pwszFilename	Name of the bitmap file.
+ * @param ppvPixels		Will receive the converted pixel data.
+ * @param pcbPixels		Will receive the size of the pixel data, in bytes.
+ *
+ * @return HRESULT
+ *
+ * @remark Free the returned buffer to the process heap.
+*/
+STATIC
+HRESULT
+main_ConvertBitmapForQr(
+	_In_									PCWSTR	pwszFilename,
+	_Outptr_result_bytebuffer_(*pcbPixels)	PVOID *	ppvPixels,
+	_Out_									PDWORD	pcbPixels
 );
 
 /**
@@ -264,4 +308,21 @@ HRESULT
 main_HandleVanity(
 	_In_					INT				nArguments,
 	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
+);
+
+/**
+ * Handler for the "qr" subfunction.
+ *
+ * @param[in]	nArguments		Number of command line arguments.
+ * @param[in]	ppwszArguments	The command line arguments.
+ *
+ * @returns HRESULT
+ *
+ * @see SUBFUNCTION_QR_ARGS
+*/
+STATIC
+HRESULT
+main_HandleQr(
+	_In_					INT				nArguments,
+	_In_reads_(nArguments)	PCWSTR CONST *	ppwszArguments
 );

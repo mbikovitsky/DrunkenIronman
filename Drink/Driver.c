@@ -15,6 +15,7 @@
 #include "Util.h"
 #include "VgaDump.h"
 #include "Carpenter.h"
+#include "QRPatch.h"
 
 
 /** Macros **************************************************************/
@@ -93,6 +94,7 @@ AuxKlibInitialize(VOID);
  * @param[in]	ptDriverObject	Pointer to the driver object.
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
 STATIC
 VOID
 driver_Unload(
@@ -239,6 +241,10 @@ driver_HandleVanity(
 	NTSTATUS					eStatus			= STATUS_UNSUCCESSFUL;
 	BOOLEAN						bLockAcquired	= FALSE;
 	ANSI_STRING					sInputString	= { 0 };
+	PSYSTEM_BIGPOOL_INFORMATION	ptBigPoolInfo	= NULL;
+	PVOID						pvMessageTable	= NULL;
+	ULONG						cbMessageTable	= 0;
+	ULONG						nIndex			= 0;
 	PAUX_MODULE_EXTENDED_INFO	ptModules		= NULL;
 	ULONG						nModules		= 0;
 	HCARPENTER					hCarpenter		= NULL;
@@ -275,22 +281,66 @@ driver_HandleVanity(
 		goto lblCleanup;
 	}
 
-	// Obtain a list of loaded drivers.
-	eStatus = UTIL_QueryModuleInformation(&ptModules, &nModules);
-	if (!NT_SUCCESS(eStatus))
+	if (UTIL_IsWindows10OrGreater())
 	{
-		goto lblCleanup;
-	}
+		// In Windows 10 the message table is copied to the pool.
 
-	// Prepare to patch the message table of ntoskrnl.exe.
-	eStatus = CARPENTER_Create(ptModules[0].tBasicInfo.pvImageBase,
-							   RT_MESSAGETABLE,
-							   1,
-							   MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
-							   &hCarpenter);
-	if (!NT_SUCCESS(eStatus))
+		eStatus = UTIL_QuerySystemInformation(SystemBigPoolInformation, (PVOID *)&ptBigPoolInfo, NULL);
+		if (!NT_SUCCESS(eStatus))
+		{
+			goto lblCleanup;
+		}
+
+		for (nIndex = 0; nIndex < ptBigPoolInfo->Count; ++nIndex)
+		{
+			if ('cBiK' == ptBigPoolInfo->AllocatedInfo[nIndex].TagUlong)
+			{
+				if (ptBigPoolInfo->AllocatedInfo[nIndex].SizeInBytes > MAXULONG)
+				{
+					continue;
+				}
+
+				if (NULL != pvMessageTable)
+				{
+					eStatus = STATUS_MULTIPLE_FAULT_VIOLATION;
+					goto lblCleanup;
+				}
+
+				pvMessageTable = (PVOID)((ULONG_PTR)(ptBigPoolInfo->AllocatedInfo[nIndex].VirtualAddress) & (~(ULONG_PTR)1));
+				cbMessageTable = (ULONG)ptBigPoolInfo->AllocatedInfo[nIndex].SizeInBytes;
+			}
+		}
+		if (NULL == pvMessageTable)
+		{
+			eStatus = STATUS_NOT_FOUND;
+			goto lblCleanup;
+		}
+
+		eStatus = CARPENTER_CreateFromResource(pvMessageTable, cbMessageTable, &hCarpenter);
+		if (!NT_SUCCESS(eStatus))
+		{
+			goto lblCleanup;
+		}
+	}
+	else
 	{
-		goto lblCleanup;
+		// Obtain a list of loaded drivers.
+		eStatus = UTIL_QueryModuleInformation(&ptModules, &nModules);
+		if (!NT_SUCCESS(eStatus))
+		{
+			goto lblCleanup;
+		}
+
+		// Prepare to patch the message table of ntoskrnl.exe.
+		eStatus = CARPENTER_Create(ptModules[0].tBasicInfo.pvImageBase,
+								   RT_MESSAGETABLE,
+								   1,
+								   MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
+								   &hCarpenter);
+		if (!NT_SUCCESS(eStatus))
+		{
+			goto lblCleanup;
+		}
 	}
 
 	// Insert the caller-supplied message.
@@ -303,7 +353,9 @@ driver_HandleVanity(
 	}
 
 	// Patch!
-	eStatus = CARPENTER_ApplyPatch(hCarpenter);
+	// On Windows 10 the size we obtain above is the size of the allocation, not of the message
+	// table, so it can be a bit larger. So we disable the check and hope for the best.
+	eStatus = CARPENTER_ApplyPatch(hCarpenter, !UTIL_IsWindows10OrGreater());
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
@@ -321,12 +373,122 @@ driver_HandleVanity(
 lblCleanup:
 	CLOSE(hCarpenter, CARPENTER_Destroy);
 	CLOSE(ptModules, ExFreePool);
+	CLOSE(ptBigPoolInfo, ExFreePool);
 	if (bLockAcquired)
 	{
 		(VOID)KeReleaseMutex(&g_tVanityLock, FALSE);
 		bLockAcquired = FALSE;
 	}
 
+	return eStatus;
+}
+
+/**
+ * Handles IOCTL_DRINK_QR_INFO.
+ *
+ * @param[out]	pvOutputBuffer	The IOCTLs output buffer.
+ * @param[in]	cbOutputBuffer	Size of the output buffer, in bytes.
+ * @param[out]	pcbWritten		Will receive the amount of bytes written to the output buffer.
+ *
+ * @returns NTSTATUS
+ */
+_IRQL_requires_max_(DISPATCH_LEVEL)
+STATIC
+NTSTATUS
+driver_HandleQrInfo(
+	_Out_writes_bytes_to_(cbOutputBuffer, *pcbWritten)	PVOID	pvOutputBuffer,
+	_In_												ULONG	cbOutputBuffer,
+	_Out_												PULONG	pcbWritten
+)
+{
+	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
+	BITMAP_INFO	tBitmapInfo	= { 0 };
+	QR_INFO		tQrInfo		= { 0 };
+
+	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
+
+	NT_ASSERT(NULL != pcbWritten);
+
+	*pcbWritten = 0;
+
+	if (!UTIL_IsWindows10OrGreater())
+	{
+		eStatus = STATUS_NOT_SUPPORTED;
+		goto lblCleanup;
+	}
+
+	if (NULL == pvOutputBuffer)
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	if (cbOutputBuffer < sizeof(tQrInfo))
+	{
+		eStatus = STATUS_BUFFER_TOO_SMALL;
+		goto lblCleanup;
+	}
+
+	eStatus = QRPATCH_GetBitmapInfo(&tBitmapInfo);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	tQrInfo.nWidth = tBitmapInfo.nWidth;
+	tQrInfo.nHeight = tBitmapInfo.nHeight;
+	tQrInfo.nBitCount = tBitmapInfo.nBitCount;
+
+	RtlMoveMemory(pvOutputBuffer, &tQrInfo, sizeof(tQrInfo));
+	*pcbWritten = sizeof(tQrInfo);
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	return eStatus;
+}
+
+/**
+ * Handles IOCTL_DRINK_QR_SET.
+ *
+ * @param[in]	pvInputBuffer	The IOCTLs input buffer.
+ * @param[in]	cbInputBuffer	Size of the input buffer, in bytes.
+ *
+ * @returns NTSTATUS
+ */
+_IRQL_requires_max_(DISPATCH_LEVEL)
+STATIC
+NTSTATUS
+driver_HandleQrSet(
+	_In_reads_bytes_(cbInputBuffer)	PVOID	pvInputBuffer,
+	_In_							ULONG	cbInputBuffer
+)
+{
+	NTSTATUS	eStatus	= STATUS_UNSUCCESSFUL;
+
+	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
+
+	if (!UTIL_IsWindows10OrGreater())
+	{
+		eStatus = STATUS_NOT_SUPPORTED;
+		goto lblCleanup;
+	}
+
+	if (NULL == pvInputBuffer)
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	eStatus = QRPATCH_SetBitmap(pvInputBuffer, cbInputBuffer);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
 	return eStatus;
 }
 
@@ -348,14 +510,15 @@ driver_DispatchDeviceControl(
 {
 	NTSTATUS			eStatus			= STATUS_UNSUCCESSFUL;
 	PIO_STACK_LOCATION	ptStackLocation	= NULL;
+	ULONG				cbWritten		= 0;
 
 #ifndef DBG
 	UNREFERENCED_PARAMETER(ptDeviceObject);
 #endif // !DBG
 
-	ASSERT(NULL != ptDeviceObject);
-	ASSERT(NULL != ptIrp);
-	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
+	NT_ASSERT(NULL != ptDeviceObject);
+	NT_ASSERT(NULL != ptIrp);
+	NT_ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
 
 	ptStackLocation = IoGetCurrentIrpStackLocation(ptIrp);
 	ASSERT(NULL != ptStackLocation);
@@ -372,6 +535,17 @@ driver_DispatchDeviceControl(
 		ASSERT(!NT_SUCCESS(eStatus));	// The above call returns only on failure.
 		break;
 
+	case IOCTL_DRINK_QR_INFO:
+		eStatus = driver_HandleQrInfo(ptIrp->AssociatedIrp.SystemBuffer,
+									  ptStackLocation->Parameters.DeviceIoControl.OutputBufferLength,
+									  &cbWritten);
+		break;
+
+	case IOCTL_DRINK_QR_SET:
+		eStatus = driver_HandleQrSet(ptIrp->AssociatedIrp.SystemBuffer,
+									 ptStackLocation->Parameters.DeviceIoControl.InputBufferLength);
+		break;
+
 	default:
 		eStatus = STATUS_INVALID_DEVICE_REQUEST;
 		break;
@@ -380,7 +554,7 @@ driver_DispatchDeviceControl(
 	// Keep last status
 
 //lblCleanup:
-	COMPLETE_IRP(ptIrp, eStatus, 0, IO_NO_INCREMENT);
+	COMPLETE_IRP(ptIrp, eStatus, cbWritten, IO_NO_INCREMENT);
 	return eStatus;
 }
 
@@ -394,6 +568,7 @@ driver_DispatchDeviceControl(
  * @returns NTSTATUS
  */
 _IRQL_requires_(PASSIVE_LEVEL)
+__declspec(code_seg("INIT"))
 NTSTATUS
 DriverEntry(
 	_In_	PDRIVER_OBJECT	ptDriverObject,
@@ -421,6 +596,15 @@ DriverEntry(
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
+	}
+
+	if (UTIL_IsWindows10OrGreater())
+	{
+		eStatus = QRPATCH_Initialize();
+		if (!NT_SUCCESS(eStatus))
+		{
+			goto lblCleanup;
+		}
 	}
 
 	//

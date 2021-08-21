@@ -71,6 +71,24 @@ EXTERN_C CONST GUID DECLSPEC_SELECTANY g_tVgaDumpGuid =
 #define IOCTL_DRINK_VANITY \
 	(CTL_CODE(DRINK_DEVICE_TYPE, 0x801, METHOD_BUFFERED, FILE_ANY_ACCESS))
 
+/**
+ * @brief Returns information about the current bugcheck QR image.
+ *
+ * Input:	None.
+ * Output:	QR_INFO structure.
+ */
+#define IOCTL_DRINK_QR_INFO \
+	(CTL_CODE(DRINK_DEVICE_TYPE, 0x802, METHOD_BUFFERED, FILE_ANY_ACCESS))
+
+/**
+ * @brief Sets the QR bitmap.
+ *
+ * Input:	Pixel data.
+ * Output:	None.
+ */
+#define IOCTL_DRINK_QR_SET \
+	(CTL_CODE(DRINK_DEVICE_TYPE, 0x803, METHOD_BUFFERED, FILE_ANY_ACCESS))
+
 
 /** Typedefs ************************************************************/
 
@@ -102,3 +120,14 @@ typedef struct _VGA_DUMP
 	VGA_PLANE_DUMP	atPlanes[VGA_PLANES];
 } VGA_DUMP, *PVGA_DUMP;
 typedef CONST VGA_DUMP *PCVGA_DUMP;
+
+/**
+ * @brief Holds information about the current bugcheck QR image.
+*/
+typedef struct _QR_INFO
+{
+	ULONG	nWidth;
+	ULONG	nHeight;
+	ULONG	nBitCount;
+} QR_INFO, *PQR_INFO;
+typedef QR_INFO CONST *PCQR_INFO;

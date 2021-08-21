@@ -41,17 +41,17 @@ typedef CONST MESSAGE_TABLE_ENTRY *PCMESSAGE_TABLE_ENTRY;
 /**
  * Callback used when enumerating message table entries.
  *
- * @param[in]	ptEntry					Entry currently being enumerated.
- *										The entry and its contents MUST NOT
- *										be modified by the callback.
- * @param[in]	ptPreviousEntry			Previous entry, or NULL if this is the first
- *										invocation of the callback. The callback MUST
- *										NOT modify the entry or its contents.
- * @param[in]	pvContext				Context specified when invoking the enumeration
- *										function.
- * @param[out]	pbContinueEnumeration	The callback should set this to FALSE to
- *										abort the enumeration. The enumeration function
- *										sets this to TRUE before invoking the callback.
+ * @param[in]		ptEntry					Entry currently being enumerated.
+ *											The entry and its contents MUST NOT
+ *											be modified by the callback.
+ * @param[in]		ptPreviousEntry			Previous entry, or NULL if this is the first
+ *											invocation of the callback. The callback MUST
+ *											NOT modify the entry or its contents.
+ * @param[in]		pvContext				Context specified when invoking the enumeration
+ *											function.
+ * @param[in,out]	pbContinueEnumeration	The callback should set this to FALSE to
+ *											abort the enumeration. The enumeration function
+ *											sets this to TRUE before invoking the callback.
  */
 typedef
 VOID
@@ -59,7 +59,7 @@ FN_MESSAGETABLE_ENUMERATION_CALLBACK(
 	_In_		PCMESSAGE_TABLE_ENTRY	ptEntry,
 	_In_opt_	PCMESSAGE_TABLE_ENTRY	ptPreviousEntry,
 	_In_opt_	PVOID					pvContext,
-	_Out_		PBOOLEAN				pbContinueEnumeration
+	_Inout_		PBOOLEAN				pbContinueEnumeration
 );
 typedef FN_MESSAGETABLE_ENUMERATION_CALLBACK *PFN_MESSAGETABLE_ENUMERATION_CALLBACK;
 

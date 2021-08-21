@@ -11,6 +11,8 @@
 #include <strsafe.h>
 #include <intsafe.h>
 
+#include <assert.h>
+
 #include "Util.h"
 
 
@@ -428,6 +430,83 @@ UTIL_DuplicateStringUnicodeToAnsi(
 
 lblCleanup:
 	HEAPFREE(pszDestination);
+
+	return hrResult;
+}
+
+_Use_decl_annotations_
+HRESULT
+UTIL_ReadFile(
+	PCWSTR	pwszFilename,
+	PVOID *	ppvFileContents,
+	PSIZE_T	pcbFileContents
+)
+{
+	HRESULT			hrResult		= E_FAIL;
+	HANDLE			hFile			= INVALID_HANDLE_VALUE;
+	LARGE_INTEGER	cbFileSize		= { 0 };
+	PVOID			pvFileContents	= NULL;
+	SIZE_T			cbRemaining		= 0;
+	DWORD			cbBytesRead		= 0;
+
+	if (NULL == pwszFilename || NULL == ppvFileContents || NULL == pcbFileContents)
+	{
+		hrResult = E_INVALIDARG;
+		goto lblCleanup;
+	}
+
+	hFile = CreateFileW(pwszFilename,
+						GENERIC_READ,
+						FILE_SHARE_READ | FILE_SHARE_DELETE,
+						NULL,
+						OPEN_EXISTING,
+						FILE_ATTRIBUTE_NORMAL,
+						NULL);
+	if (INVALID_HANDLE_VALUE == hFile)
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+
+	if (!GetFileSizeEx(hFile, &cbFileSize))
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		goto lblCleanup;
+	}
+	assert(cbFileSize.QuadPart >= 0);
+
+	pvFileContents = HEAPALLOC((SIZE_T)(cbFileSize.QuadPart));
+	if (NULL == pvFileContents)
+	{
+		hrResult = E_OUTOFMEMORY;
+		goto lblCleanup;
+	}
+
+	cbRemaining = (SIZE_T)(cbFileSize.QuadPart);
+	while (cbRemaining > 0)
+	{
+		if (!ReadFile(hFile,
+					  (PBYTE)pvFileContents + (cbFileSize.QuadPart - cbRemaining),
+					  (DWORD)min(cbRemaining, MAXDWORD),
+					  &cbBytesRead,
+					  NULL))
+		{
+			hrResult = HRESULT_FROM_WIN32(GetLastError());
+			goto lblCleanup;
+		}
+		cbRemaining -= cbBytesRead;
+	}
+
+	// Transfer ownership:
+	*ppvFileContents = pvFileContents;
+	pvFileContents = NULL;
+	*pcbFileContents = (SIZE_T)(cbFileSize.QuadPart);
+
+	hrResult = S_OK;
+
+lblCleanup:
+	HEAPFREE(pvFileContents);
+	CLOSE_FILE_HANDLE(hFile);
 
 	return hrResult;
 }

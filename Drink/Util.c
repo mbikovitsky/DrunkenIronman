@@ -23,6 +23,11 @@
  */
 #define UTIL_POOL_TAG (RtlUlongByteSwap('Util'))
 
+/**
+ * Number of iterations to use when querying for system information.
+ */
+#define QUERY_SYSTEM_INFO_ITERATIONS (10)
+
 
 /** Forward Declarations ************************************************/
 
@@ -52,8 +57,42 @@ AuxKlibQueryModuleInformation(
 	_Out_writes_bytes_opt_(*pcbBuffer)	PVOID	pvQueryInfo
 );
 
+_IRQL_requires_(PASSIVE_LEVEL)
+NTSTATUS 
+ZwQuerySystemInformation (
+    _In_															SYSTEM_INFORMATION_CLASS	SystemInformationClass, 
+    _Out_writes_bytes_to_(SystemInformationLength, *ReturnLength)	PVOID						SystemInformation, 
+    _In_															ULONG						SystemInformationLength, 
+    _Out_opt_														PULONG						ReturnLength
+);
+
 
 /** Functions ***********************************************************/
+
+_Use_decl_annotations_
+PAGEABLE
+BOOLEAN
+UTIL_IsWindows10OrGreater(VOID)
+{
+	NTSTATUS				eStatus			= STATUS_UNSUCCESSFUL;
+	RTL_OSVERSIONINFOEXW	tVersionInfo	= { 0 };
+	ULONGLONG				fConditionMask	= 0;
+
+	PAGED_CODE();
+	NT_ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
+
+	tVersionInfo.dwMajorVersion = 10;
+	tVersionInfo.dwMinorVersion = 0;
+
+	VER_SET_CONDITION(fConditionMask, VER_MAJORVERSION, VER_GREATER_EQUAL);
+	VER_SET_CONDITION(fConditionMask, VER_MINORVERSION, VER_GREATER_EQUAL);
+
+	eStatus = RtlVerifyVersionInfo(&tVersionInfo, VER_MAJORVERSION | VER_MINORVERSION, fConditionMask);
+	NT_ASSERT(STATUS_SUCCESS == eStatus || STATUS_REVISION_MISMATCH == eStatus);
+	C_ASSERT(!NT_SUCCESS(STATUS_REVISION_MISMATCH));
+
+	return NT_SUCCESS(eStatus);
+}
 
 _IRQL_requires_(PASSIVE_LEVEL)
 PAGEABLE
@@ -67,6 +106,7 @@ UTIL_InitUnicodeStringCb(
 	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
 	size_t		cbString	= 0;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == pusOutputString)
@@ -136,6 +176,7 @@ UTIL_InitUnicodeStringCch(
 	NTSTATUS	eStatus				= STATUS_UNSUCCESSFUL;
 	SIZE_T		cbInputStringMax	= 0;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == pusOutputString)
@@ -183,6 +224,7 @@ UTIL_InitAnsiStringCb(
 	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
 	size_t		cbString	= 0;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == psOutputString)
@@ -252,6 +294,7 @@ UTIL_InitAnsiStringCch(
 	NTSTATUS	eStatus				= STATUS_UNSUCCESSFUL;
 	SIZE_T		cbInputStringMax	= 0;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if (NULL == psOutputString)
@@ -301,6 +344,7 @@ UTIL_QueryModuleInformation(
 	ULONG						nModules		= 0;
 	PAUX_MODULE_EXTENDED_INFO	ptCurrentModule	= NULL;
 
+	PAGED_CODE();
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
 	if ((NULL == pptModules) ||
@@ -370,6 +414,77 @@ UTIL_QueryModuleInformation(
 
 lblCleanup:
 	CLOSE(ptModules, ExFreePool);
+
+	return eStatus;
+}
+
+_Use_decl_annotations_
+PAGEABLE
+NTSTATUS
+UTIL_QuerySystemInformation(
+	SYSTEM_INFORMATION_CLASS	eInfoClass,
+	PVOID *						ppvInformation,
+	PULONG						pcbInformation
+)
+{
+	NTSTATUS	eStatus			= STATUS_UNSUCCESSFUL;
+	PVOID		pvInformation	= NULL;
+	ULONG		cbInformation	= 0;
+	ULONG		nIteration		= 0;
+	ULONG		cbReturned		= 0;
+
+	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
+
+	if (NULL == ppvInformation)
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	cbInformation = PAGE_SIZE;
+
+	for (nIteration = 0; nIteration < QUERY_SYSTEM_INFO_ITERATIONS; ++nIteration)
+	{
+		// Allocate a buffer.
+		pvInformation = ExAllocatePoolWithTag(PagedPool, cbInformation, UTIL_POOL_TAG);
+		if (NULL == pvInformation)
+		{
+			eStatus = STATUS_INSUFFICIENT_RESOURCES;
+			goto lblCleanup;
+		}
+
+		// Try to obtain the information.
+		eStatus = ZwQuerySystemInformation(eInfoClass, pvInformation, cbInformation, &cbReturned);
+		if (NT_SUCCESS(eStatus))
+		{
+			break;
+		}
+
+		// Free the buffer.
+		CLOSE(pvInformation, ExFreePool);
+
+		// Try again with double the size.
+		cbInformation *= 2;
+	}
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Transfer ownership:
+	*ppvInformation = pvInformation;
+	pvInformation = NULL;
+
+	if (NULL != pcbInformation)
+	{
+		*pcbInformation = cbReturned;
+	}
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	CLOSE(pvInformation, ExFreePool);
 
 	return eStatus;
 }

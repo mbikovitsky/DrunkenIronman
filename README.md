@@ -12,12 +12,17 @@ Taking the Death out of the Blue Screen.
 Make sure memory dumps are enabled if you intend
 to capture screenshots.
 
-The software has been tested only on Windows XP SP3. YMMV.
+The software has been tested on the following *virtual machines*:
+- Windows XP SP3 x86
+- Windows 10 14393 x86
+- Windows 10 19043 x64
+
+YMMV.
 
 ```
 DrunkenIronman.exe <subfunction> <subfunction args>
 
-  convert [input] output
+  convert [<input>] <output>
     Extracts a screenshot from a memory dump.
 
   load
@@ -30,9 +35,18 @@ DrunkenIronman.exe <subfunction> <subfunction args>
     Instructs the driver to capture a screenshot
     of the next BSoD.
 
-  vanity string
+  vanity <string>
     Crashes the system and displays the specified string
     on the BSoD.
+
+  qr
+    Displays the dimensions of the current QR image.
+
+  qr <image>
+    Sets an image to be used instead of the default QR code.
+    The image must be a non-compressed BMP
+    with either 32 or 24 BPP, and with the same dimensions
+    as the default QR image.
 ```
 
 ### Examples
@@ -48,6 +62,13 @@ DrunkenIronman.exe convert C:\Some\Path\MEMORY.DMP out2.bmp
 DrunkenIronman.exe vanity IRQL_NOT_LESS_OR_AWESOME
 ```
 
+#### Custom QR image
+```
+DrunkenIronman.exe qr C:\Some\Path\image.bmp
+```
+
 
 ## Screenshots
-![IRQL_NOT_LESS_OR_AWESOME](Screenshot.bmp "IRQL_NOT_LESS_OR_AWESOME")
+![Screenshot of a Windows XP blue screen with the message IRQL NOT LESS OR AWESOME](Screenshot_XP.bmp)
+
+![Screenshot of a Windows 10 blue screen with the message IRQL NOT LESS OR AWESOME and a QR code linking to a popular video](Screenshot_10.bmp)
