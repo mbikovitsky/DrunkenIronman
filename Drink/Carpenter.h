@@ -65,6 +65,24 @@ CARPENTER_Create(
 );
 
 /**
+ * Creates a new patcher instance.
+ *
+ * @param[in]	pvMessageTableResource	Message table resource.
+ * @param[in]	cbMessageTableResource	Size of the resource, in bytes.
+ * @param[out]	phCarpenter				Will receive a patcher handle.
+ *
+ * @returns NTSTATUS
+ */
+_IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
+NTSTATUS
+CARPENTER_CreateFromResource(
+	_In_reads_bytes_(cbMessageTableResource)	PVOID		pvMessageTableResource,
+	_In_										ULONG		cbMessageTableResource,
+	_Out_										PHCARPENTER	phCarpenter
+);
+
+/**
  * Destroys a patcher instance.
  *
  * @param[in]	hCarpenter	Patcher to destroy.
