@@ -67,6 +67,7 @@ STATIC CONST SUBFUNCTION_HANDLER_ENTRY g_atSubfunctionHandlers[] = {
 
 /** Functions ***********************************************************/
 
+_Use_decl_annotations_
 STATIC
 VOID
 main_PrintUsage(VOID)
@@ -225,6 +226,251 @@ main_VgaDumpToBitmap(
 
 lblCleanup:
 	HEAPFREE(ptBitmap);
+
+	return hrResult;
+}
+
+_Use_decl_annotations_
+STATIC
+HRESULT
+main_GetQrInfo(
+	PQR_INFO	ptInfo
+)
+{
+	HRESULT	hrResult	= E_FAIL;
+	DWORD	cbReturned	= 0;
+
+	assert(NULL != ptInfo);
+
+	hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_QR_INFO,
+										  NULL, 0,
+										  ptInfo, sizeof(*ptInfo), &cbReturned);
+	if (FAILED(hrResult))
+	{
+		PROGRESS("Failed retrieving information (0x%08lX).", hrResult);
+		goto lblCleanup;
+	}
+
+	if (cbReturned < sizeof(*ptInfo))
+	{
+		PROGRESS("Returned buffer is unexpectedly small (%lu).", cbReturned);
+	}
+	assert(sizeof(*ptInfo) == cbReturned);
+
+	hrResult = S_OK;
+
+lblCleanup:
+	return hrResult;
+}
+
+_Use_decl_annotations_
+STATIC
+HRESULT
+main_ConvertBitmapForQr(
+	PCWSTR	pwszFilename,
+	PVOID *	ppvPixels,
+	PDWORD	pcbPixels
+)
+{
+	HRESULT				hrResult		= E_FAIL;
+	QR_INFO				tQrInfo			= { 0 };
+	PVOID				pvBitmap		= NULL;
+	SIZE_T				cbBitmap		= 0;
+	PBITMAPFILEHEADER	ptFileHeader	= NULL;
+	PBITMAPINFOHEADER	ptInfoHeader	= NULL;
+	PVOID				pvPixels		= NULL;
+	DWORD				cbPixels		= 0;
+
+	assert(NULL != pwszFilename);
+	assert(NULL != ppvPixels);
+	assert(NULL != pcbPixels);
+
+	hrResult = main_GetQrInfo(&tQrInfo);
+	if (FAILED(hrResult))
+	{
+		PROGRESS("main_GetQrInfo failed with code 0x%08lX.", hrResult);
+		goto lblCleanup;
+	}
+
+	// Kernel also supports 24-bit bitmaps, but I don't wanna deal with conversion :)
+	if (32 != tQrInfo.nBitCount)
+	{
+		hrResult = E_NOTIMPL;
+		PROGRESS("Current QR bitmap has an unsupported BPP (%lu).", tQrInfo.nBitCount);
+		goto lblCleanup;
+	}
+
+	hrResult = UTIL_ReadFile(pwszFilename, &pvBitmap, &cbBitmap);
+	if (FAILED(hrResult))
+	{
+		PROGRESS("Failed reading bitmap file (0x%08lX).", hrResult);
+		goto lblCleanup;
+	}
+
+	if (cbBitmap > MAXDWORD)
+	{
+		hrResult = HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE);
+		PROGRESS("Bitmap file is too large.");
+		goto lblCleanup;
+	}
+
+	if (cbBitmap < sizeof(*ptFileHeader) + sizeof(*ptInfoHeader))
+	{
+		hrResult = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
+		PROGRESS("Bitmap file is too small.");
+		goto lblCleanup;
+	}
+
+	ptFileHeader = (PBITMAPFILEHEADER)pvBitmap;
+
+	if ('MB' != ptFileHeader->bfType)
+	{
+		hrResult = HRESULT_FROM_WIN32(ERROR_BAD_FORMAT);
+		PROGRESS("Invalid magic for bitmap file.");
+		goto lblCleanup;
+	}
+
+	ptInfoHeader = (PBITMAPINFOHEADER)(ptFileHeader + 1);
+
+	if (sizeof(*ptInfoHeader) != ptInfoHeader->biSize)
+	{
+		hrResult = HRESULT_FROM_WIN32(ERROR_BAD_FORMAT);
+		PROGRESS("Invalid size for bitmap info header.");
+		goto lblCleanup;
+	}
+
+	if (BI_RGB != ptInfoHeader->biCompression)
+	{
+		hrResult = HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
+		PROGRESS("Unsupported bitmap compression.");
+		goto lblCleanup;
+	}
+
+	if (32 != ptInfoHeader->biBitCount && 24 != ptInfoHeader->biBitCount)
+	{
+		hrResult = HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
+		PROGRESS("Unsupported BPP value (%hu).", ptInfoHeader->biBitCount);
+		goto lblCleanup;
+	}
+
+	if (ptInfoHeader->biWidth < 0)
+	{
+		hrResult = HRESULT_FROM_WIN32(ERROR_BAD_FORMAT);
+		PROGRESS("Bitmap width is negative.");
+		goto lblCleanup;
+	}
+	if ((ULONG)(ptInfoHeader->biWidth) != tQrInfo.nWidth)
+	{
+		hrResult = E_INVALIDARG;
+		PROGRESS("Bitmap width does not match existing QR image.");
+		goto lblCleanup;
+	}
+
+	if (llabs((LONGLONG)(ptInfoHeader->biHeight)) != (LONGLONG)(tQrInfo.nHeight))
+	{
+		hrResult = E_INVALIDARG;
+		PROGRESS("Bitmap height does not match existing QR image.");
+		goto lblCleanup;
+	}
+
+	// YOLO: not dealing with overflow. It's from the kernel, so it's trusted :)
+	cbPixels = tQrInfo.nWidth * tQrInfo.nHeight * tQrInfo.nBitCount / 8;
+
+	// TODO: Validate source file has enough data
+
+	pvPixels = HEAPALLOC(cbPixels);
+	if (NULL == pvPixels)
+	{
+		hrResult = E_OUTOFMEMORY;
+		goto lblCleanup;
+	}
+
+	assert(32 == tQrInfo.nBitCount);	// The following code converts to 32 BPP
+	if (32 == ptInfoHeader->biBitCount)
+	{
+		// No need to deal with bitmap line alignment
+
+		if (ptInfoHeader->biHeight < 0)
+		{
+			// Top-down bitmap, just copy it.
+			RtlMoveMemory(pvPixels, ptInfoHeader + 1, cbPixels);
+		}
+		else
+		{
+			ULONG	cbRow		= ptInfoHeader->biBitCount * tQrInfo.nWidth;
+			PBYTE	pcSource	= (PBYTE)(ptInfoHeader + 1);
+			PBYTE	pcDest		= ((PBYTE)pvPixels) + ((tQrInfo.nHeight - 1) * cbRow);
+			ULONG	nRow		= 0;
+
+			// Bottom-up bitmap. Copy in reverse.
+
+			for (nRow = 0; nRow < tQrInfo.nHeight; ++nRow)
+			{
+				RtlMoveMemory(pcDest, pcSource, cbRow);
+				pcDest -= cbRow;
+				pcSource += cbRow;
+			}
+		}
+	}
+	else
+	{
+		ULONG		cbSourceRow	= (ptInfoHeader->biBitCount / 8 * tQrInfo.nWidth) + (4 - ptInfoHeader->biBitCount / 8 * tQrInfo.nWidth % 4);
+		LPRGBTRIPLE	ptSourceRow	= (LPRGBTRIPLE)(ptInfoHeader + 1);
+		ULONG		nRow		= 0;
+		ULONG		nColumn		= 0;
+
+		assert(24 == ptInfoHeader->biBitCount);
+
+		if (ptInfoHeader->biHeight < 0)
+		{
+			LPRGBQUAD	ptDestRow	= pvPixels;
+
+			// Top-down bitmap, copy normally.
+			
+			for (nRow = 0; nRow < tQrInfo.nHeight; ++nRow)
+			{
+				for (nColumn = 0; nColumn < tQrInfo.nWidth; ++nColumn)
+				{
+					ptDestRow[nColumn].rgbBlue = ptSourceRow[nColumn].rgbtBlue;
+					ptDestRow[nColumn].rgbGreen = ptSourceRow[nColumn].rgbtGreen;
+					ptDestRow[nColumn].rgbRed = ptSourceRow[nColumn].rgbtRed;
+					ptDestRow[nColumn].rgbReserved = 0;
+				}
+				ptSourceRow = (LPRGBTRIPLE)((PBYTE)ptSourceRow + cbSourceRow);
+				ptDestRow += tQrInfo.nWidth;
+			}
+		}
+		else
+		{
+			LPRGBQUAD	ptDestRow	= ((LPRGBQUAD)pvPixels) + ((tQrInfo.nHeight - 1) * tQrInfo.nWidth);
+
+			// Bottom-up bitmap. Copy in reverse.
+
+			for (nRow = 0; nRow < tQrInfo.nHeight; ++nRow)
+			{
+				for (nColumn = 0; nColumn < tQrInfo.nWidth; ++nColumn)
+				{
+					ptDestRow[nColumn].rgbBlue = ptSourceRow[nColumn].rgbtBlue;
+					ptDestRow[nColumn].rgbGreen = ptSourceRow[nColumn].rgbtGreen;
+					ptDestRow[nColumn].rgbRed = ptSourceRow[nColumn].rgbtRed;
+					ptDestRow[nColumn].rgbReserved = 0;
+				}
+				ptSourceRow = (LPRGBTRIPLE)((PBYTE)ptSourceRow + cbSourceRow);
+				ptDestRow -= tQrInfo.nWidth;
+			}
+		}
+	}
+
+	// Transfer ownership:
+	*ppvPixels = pvPixels;
+	pvPixels = NULL;
+	*pcbPixels = cbPixels;
+
+	hrResult = S_OK;
+
+lblCleanup:
+	HEAPFREE(pvPixels);
+	HEAPFREE(pvBitmap);
 
 	return hrResult;
 }
@@ -519,36 +765,47 @@ main_HandleQr(
 {
 	HRESULT	hrResult	= E_FAIL;
 	QR_INFO	tInfo		= { 0 };
-	DWORD	cbReturned	= 0;
+	PVOID	pvPixels	= NULL;
+	DWORD	cbPixels	= 0;
 
-	UNREFERENCED_PARAMETER(ppwszArguments);
+	PROGRESS("Retrieving QR bitmap information.");
+
+	hrResult = main_GetQrInfo(&tInfo);
+	if (FAILED(hrResult))
+	{
+		PROGRESS("main_GetQrInfo failed with code 0x%08lX.", hrResult);
+		goto lblCleanup;
+	}
+
+	PROGRESS("QR bitmap is %lux%lu@%lubpp", tInfo.nWidth, tInfo.nHeight, tInfo.nBitCount);
 
 	if (0 == nArguments)
 	{
-		PROGRESS("Retrieving QR bitmap information.");
-
-		hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_QR_INFO,
-											NULL, 0,
-											&tInfo, sizeof(tInfo), &cbReturned);
-		if (FAILED(hrResult))
-		{
-			PROGRESS("Failed retrieving information.");
-			goto lblCleanup;
-		}
-
-		if (cbReturned < sizeof(tInfo))
-		{
-			PROGRESS("Returned buffer is unexpectedly small.");
-		}
-		assert(sizeof(tInfo) == cbReturned);
-
-		PROGRESS("QR bitmap is %lux%lu@%lubpp", tInfo.nWidth, tInfo.nHeight, tInfo.nBitCount);
+		// Nothing to do.
 	}
 	else if (SUBFUNCTION_QR_ARGS_COUNT == nArguments)
 	{
-		PROGRESS("Not implemented");
-		hrResult = E_NOTIMPL;
-		goto lblCleanup;
+		PROGRESS("Converting bitmap.");
+
+		hrResult = main_ConvertBitmapForQr(ppwszArguments[SUBFUNCTION_QR_ARG_IMAGE],
+										   &pvPixels,
+										   &cbPixels);
+		if (FAILED(hrResult))
+		{
+			PROGRESS("main_ConvertBitmapForQr failed with code 0x%08lX.", hrResult);
+			goto lblCleanup;
+		}
+
+		PROGRESS("Setting bitmap.");
+
+		hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_QR_SET,
+											  pvPixels, cbPixels,
+											  NULL, 0, NULL);
+		if (FAILED(hrResult))
+		{
+			PROGRESS("Failed setting bitmap (0x%08lX).", hrResult);
+			goto lblCleanup;
+		}
 	}
 	else
 	{
@@ -560,6 +817,8 @@ main_HandleQr(
 	hrResult = S_OK;
 
 lblCleanup:
+	HEAPFREE(pvPixels);
+
 	return hrResult;
 }
 

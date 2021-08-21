@@ -92,13 +92,6 @@ typedef SUBFUNCTION_QR_ARGS CONST *PCSUBFUNCTION_QR_ARGS;
 /** Typedefs ************************************************************/
 
 /**
- * Prints out the usage of the application.
- */
-STATIC
-VOID
-main_PrintUsage(VOID);
-
-/**
  * Subfunction handler prototype.
  *
  * @param[in]	nArguments		Number of command line arguments.
@@ -145,6 +138,13 @@ typedef CONST VGA_BITMAP *PCVGA_BITMAP;
 /** Functions ***********************************************************/
 
 /**
+ * Prints out the usage of the application.
+ */
+STATIC
+VOID
+main_PrintUsage(VOID);
+
+/**
  * Converts a VGA's DAC color (6-bit) to an RGB value (8-bit).
  * This function operates on a single color!
  *
@@ -188,6 +188,38 @@ HRESULT
 main_VgaDumpToBitmap(
 	_In_		PCVGA_DUMP		ptDump,
 	_Outptr_	PVGA_BITMAP *	pptBitmap
+);
+
+/**
+ * @brief Gets the current QR bitmap information.
+ *
+ * @param[out] ptInfo Will receive the info.
+ *
+ * @return HRESULT
+*/
+STATIC
+HRESULT
+main_GetQrInfo(
+	_Out_	PQR_INFO	ptInfo
+);
+
+/**
+ * @brief Converts a bitmap file to be used as a bugcheck QR image.
+ *
+ * @param pwszFilename	Name of the bitmap file.
+ * @param ppvPixels		Will receive the converted pixel data.
+ * @param pcbPixels		Will receive the size of the pixel data, in bytes.
+ *
+ * @return HRESULT
+ *
+ * @remark Free the returned buffer to the process heap.
+*/
+STATIC
+HRESULT
+main_ConvertBitmapForQr(
+	_In_									PCWSTR	pwszFilename,
+	_Outptr_result_bytebuffer_(*pcbPixels)	PVOID *	ppvPixels,
+	_Out_									PDWORD	pcbPixels
 );
 
 /**
