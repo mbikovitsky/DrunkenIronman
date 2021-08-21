@@ -237,3 +237,38 @@ QRPATCH_GetBitmapInfo(
 lblCleanup:
 	return eStatus;
 }
+
+_Use_decl_annotations_
+NTSTATUS
+QRPATCH_SetBitmap(
+	PVOID	pvPixels,
+	ULONG	cbPixels
+)
+{
+	NTSTATUS	eStatus	= STATUS_UNSUCCESSFUL;
+
+	if (NULL == pvPixels)
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	if (NULL == g_ptQrRectangle)
+	{
+		eStatus = STATUS_INVALID_DEVICE_STATE;
+		goto lblCleanup;
+	}
+
+	if (cbPixels != g_ptQrRectangle->cbPixels)
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	RtlMoveMemory(g_ptQrRectangle->pvPixels, pvPixels, cbPixels);
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	return eStatus;
+}

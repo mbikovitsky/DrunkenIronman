@@ -335,7 +335,7 @@ lblCleanup:
 /**
  * Handles IOCTL_DRINK_QR_INFO.
  *
- * @param[in]	pvOutputBuffer	The IOCTLs output buffer.
+ * @param[out]	pvOutputBuffer	The IOCTLs output buffer.
  * @param[in]	cbOutputBuffer	Size of the output buffer, in bytes.
  * @param[out]	pcbWritten		Will receive the amount of bytes written to the output buffer.
  *
@@ -345,9 +345,9 @@ _IRQL_requires_max_(DISPATCH_LEVEL)
 STATIC
 NTSTATUS
 driver_HandleQrInfo(
-	_In_	PVOID	pvOutputBuffer,
-	_In_	ULONG	cbOutputBuffer,
-	_Out_	PULONG	pcbWritten
+	_Out_writes_bytes_to_(cbOutputBuffer, *pcbWritten)	PVOID	pvOutputBuffer,
+	_In_												ULONG	cbOutputBuffer,
+	_Out_												PULONG	pcbWritten
 )
 {
 	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
@@ -363,6 +363,12 @@ driver_HandleQrInfo(
 	if (!UTIL_IsWindows10OrGreater())
 	{
 		eStatus = STATUS_NOT_SUPPORTED;
+		goto lblCleanup;
+	}
+
+	if (NULL == pvOutputBuffer)
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
 		goto lblCleanup;
 	}
 
@@ -384,6 +390,50 @@ driver_HandleQrInfo(
 
 	RtlMoveMemory(pvOutputBuffer, &tQrInfo, sizeof(tQrInfo));
 	*pcbWritten = sizeof(tQrInfo);
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	return eStatus;
+}
+
+/**
+ * Handles IOCTL_DRINK_QR_SET.
+ *
+ * @param[in]	pvInputBuffer	The IOCTLs input buffer.
+ * @param[in]	cbInputBuffer	Size of the input buffer, in bytes.
+ *
+ * @returns NTSTATUS
+ */
+_IRQL_requires_max_(DISPATCH_LEVEL)
+STATIC
+NTSTATUS
+driver_HandleQrSet(
+	_In_reads_bytes_(cbInputBuffer)	PVOID	pvInputBuffer,
+	_In_							ULONG	cbInputBuffer
+)
+{
+	NTSTATUS	eStatus	= STATUS_UNSUCCESSFUL;
+
+	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
+
+	if (!UTIL_IsWindows10OrGreater())
+	{
+		eStatus = STATUS_NOT_SUPPORTED;
+		goto lblCleanup;
+	}
+
+	if (NULL == pvInputBuffer)
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	eStatus = QRPATCH_SetBitmap(pvInputBuffer, cbInputBuffer);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
 
 	eStatus = STATUS_SUCCESS;
 
@@ -438,6 +488,11 @@ driver_DispatchDeviceControl(
 		eStatus = driver_HandleQrInfo(ptIrp->AssociatedIrp.SystemBuffer,
 									  ptStackLocation->Parameters.DeviceIoControl.OutputBufferLength,
 									  &cbWritten);
+		break;
+
+	case IOCTL_DRINK_QR_SET:
+		eStatus = driver_HandleQrSet(ptIrp->AssociatedIrp.SystemBuffer,
+									 ptStackLocation->Parameters.DeviceIoControl.InputBufferLength);
 		break;
 
 	default:

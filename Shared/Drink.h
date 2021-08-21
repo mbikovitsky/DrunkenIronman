@@ -80,6 +80,15 @@ EXTERN_C CONST GUID DECLSPEC_SELECTANY g_tVgaDumpGuid =
 #define IOCTL_DRINK_QR_INFO \
 	(CTL_CODE(DRINK_DEVICE_TYPE, 0x802, METHOD_BUFFERED, FILE_ANY_ACCESS))
 
+/**
+ * @brief Sets the QR bitmap.
+ *
+ * Input:	Pixel data.
+ * Output:	None.
+ */
+#define IOCTL_DRINK_QR_SET \
+	(CTL_CODE(DRINK_DEVICE_TYPE, 0x803, METHOD_BUFFERED, FILE_ANY_ACCESS))
+
 
 /** Typedefs ************************************************************/
 
