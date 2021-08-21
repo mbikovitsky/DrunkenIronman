@@ -69,4 +69,6 @@ DrunkenIronman.exe qr C:\Some\Path\image.bmp
 
 
 ## Screenshots
-![IRQL_NOT_LESS_OR_AWESOME](Screenshot.bmp "IRQL_NOT_LESS_OR_AWESOME")
+![Screenshot of a Windows XP blue screen with the message IRQL NOT LESS OR AWESOME](Screenshot_XP.bmp)
+
+![Screenshot of a Windows 10 blue screen with the message IRQL NOT LESS OR AWESOME and a QR code linking to a popular video](Screenshot_10.bmp)
