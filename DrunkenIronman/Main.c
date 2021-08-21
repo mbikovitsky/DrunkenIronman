@@ -90,11 +90,11 @@ main_PrintUsage(VOID)
 
 	// Print the banner
 	(VOID)fwprintf(stderr,
-				   L"Copyright (c) 2016 Michael Bikovitsky\n\n%s <subfunction> <subfunction args>\n\n",
+				   L"Copyright (c) 2016-2021 Michael Bikovitsky\n\n%s <subfunction> <subfunction args>\n\n",
 				   pwszExecutableName);
 
 	(VOID)fwprintf(stderr,
-				   L"  convert [input] output\n    Extracts a screenshot from a memory dump.\n");
+				   L"  convert [<input>] <output>\n    Extracts a screenshot from a memory dump.\n");
 
 	(VOID)fwprintf(stderr,
 				   L"  load\n    Loads the driver.\n");
@@ -106,10 +106,13 @@ main_PrintUsage(VOID)
 				   L"  bugshot\n    Instructs the driver to capture a screenshot\n    of the next BSoD.\n");
 
 	(VOID)fwprintf(stderr,
-				   L"  vanity string\n    Crashes the system and displays the specified string\n    on the BSoD.\n");
+				   L"  vanity <string>\n    Crashes the system and displays the specified string\n    on the BSoD.\n");
 
 	(VOID)fwprintf(stderr,
-				   L"  qr\n    Displays the dimensions of the QR image.\n");
+				   L"  qr\n    Displays the dimensions of the current QR image.\n");
+
+	(VOID)fwprintf(stderr,
+				   L"  qr <image>\n    Sets an image to be used instead of the default QR code.\n    The image must be a non-compressed BMP\n    with either 32 or 24 BPP, and with the same dimensions\n    as the default QR image.\n");
 
 	(VOID)fwprintf(stderr, L"\n");
 

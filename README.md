@@ -17,7 +17,7 @@ The software has been tested only on Windows XP SP3. YMMV.
 ```
 DrunkenIronman.exe <subfunction> <subfunction args>
 
-  convert [input] output
+  convert [<input>] <output>
     Extracts a screenshot from a memory dump.
 
   load
@@ -30,9 +30,18 @@ DrunkenIronman.exe <subfunction> <subfunction args>
     Instructs the driver to capture a screenshot
     of the next BSoD.
 
-  vanity string
+  vanity <string>
     Crashes the system and displays the specified string
     on the BSoD.
+
+  qr
+    Displays the dimensions of the current QR image.
+
+  qr <image>
+    Sets an image to be used instead of the default QR code.
+    The image must be a non-compressed BMP
+    with either 32 or 24 BPP, and with the same dimensions
+    as the default QR image.
 ```
 
 ### Examples
@@ -46,6 +55,11 @@ DrunkenIronman.exe convert C:\Some\Path\MEMORY.DMP out2.bmp
 #### Custom Bugcheck Message
 ```
 DrunkenIronman.exe vanity IRQL_NOT_LESS_OR_AWESOME
+```
+
+#### Custom QR image
+```
+DrunkenIronman.exe qr C:\Some\Path\image.bmp
 ```
 
 
