@@ -12,7 +12,12 @@ Taking the Death out of the Blue Screen.
 Make sure memory dumps are enabled if you intend
 to capture screenshots.
 
-The software has been tested only on Windows XP SP3. YMMV.
+The software has been tested on the following *virtual machines*:
+- Windows XP SP3 x86
+- Windows 10 14393 x86
+- Windows 10 19043 x64
+
+YMMV.
 
 ```
 DrunkenIronman.exe <subfunction> <subfunction args>
