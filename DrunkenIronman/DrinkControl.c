@@ -116,10 +116,12 @@ lblCleanup:
 HRESULT
 DRINKCONTROL_UnloadDriver(VOID)
 {
-	HRESULT			hrResult				= E_FAIL;
-	SC_HANDLE		hServiceControlManager	= NULL;
-	SC_HANDLE		hDriverService			= NULL;
-	SERVICE_STATUS	tStatus					= { 0 };
+	HRESULT					hrResult				= E_FAIL;
+	SC_HANDLE				hServiceControlManager	= NULL;
+	SC_HANDLE				hDriverService			= NULL;
+	DWORD					cbServiceConfig			= 0;
+	LPQUERY_SERVICE_CONFIGW	ptServiceConfig			= NULL;
+	SERVICE_STATUS			tStatus					= { 0 };
 
 	PROGRESS("About to unload the driver.");
 
@@ -128,18 +130,46 @@ DRINKCONTROL_UnloadDriver(VOID)
 											SC_MANAGER_CONNECT);
 	if (NULL == hServiceControlManager)
 	{
-		PROGRESS("Failed opening the SCM.");
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		PROGRESS("Failed opening the SCM.");
 		goto lblCleanup;
 	}
 
 	hDriverService = OpenServiceW(hServiceControlManager,
 								  L"Drink",
-								  SERVICE_STOP);
+								  SERVICE_STOP | SERVICE_QUERY_CONFIG);
 	if (NULL == hDriverService)
 	{
-		PROGRESS("Failed opening the driver service.");
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		PROGRESS("Failed opening the driver service.");
+		goto lblCleanup;
+	}
+
+	if (QueryServiceConfigW(hDriverService, NULL, 0, &cbServiceConfig))
+	{
+		hrResult = E_UNEXPECTED;
+		PROGRESS("QueryServiceConfigW unexpectedly succeeded.");
+		goto lblCleanup;
+	}
+	if (ERROR_INSUFFICIENT_BUFFER != GetLastError())
+	{
+		hrResult = E_UNEXPECTED;
+		PROGRESS("QueryServiceConfigW returned unexpected error %lu.", GetLastError());
+		goto lblCleanup;
+	}
+
+	ptServiceConfig = HEAPALLOC(cbServiceConfig);
+	if (NULL == ptServiceConfig)
+	{
+		hrResult = E_OUTOFMEMORY;
+		PROGRESS("Failed allocating service config buffer.");
+		goto lblCleanup;
+	}
+
+	if (!QueryServiceConfigW(hDriverService, ptServiceConfig, cbServiceConfig, &cbServiceConfig))
+	{
+		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		PROGRESS("Failed querying the driver service configuration.");
 		goto lblCleanup;
 	}
 
@@ -147,15 +177,19 @@ DRINKCONTROL_UnloadDriver(VOID)
 						SERVICE_CONTROL_STOP,
 						&tStatus))
 	{
-		PROGRESS("Failed stopping the driver service.");
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
+		PROGRESS("Failed stopping the driver service.");
 		goto lblCleanup;
 	}
 
 	PROGRESS("Driver unloaded.");
+
+	(VOID)DeleteFileW(ptServiceConfig->lpBinaryPathName);
+
 	hrResult = S_OK;
 
 lblCleanup:
+	HEAPFREE(ptServiceConfig);
 	CLOSE(hDriverService, CloseServiceHandle);
 	CLOSE(hServiceControlManager, CloseServiceHandle);
 
