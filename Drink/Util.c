@@ -23,6 +23,11 @@
  */
 #define UTIL_POOL_TAG (RtlUlongByteSwap('Util'))
 
+/**
+ * Number of iterations to use when querying for system information.
+ */
+#define QUERY_SYSTEM_INFO_ITERATIONS (10)
+
 
 /** Forward Declarations ************************************************/
 
@@ -50,6 +55,15 @@ AuxKlibQueryModuleInformation(
 	_Inout_								PULONG	pcbBuffer,
 	_In_								ULONG	cbElement,
 	_Out_writes_bytes_opt_(*pcbBuffer)	PVOID	pvQueryInfo
+);
+
+_IRQL_requires_(PASSIVE_LEVEL)
+NTSTATUS 
+ZwQuerySystemInformation (
+    _In_															SYSTEM_INFORMATION_CLASS	SystemInformationClass, 
+    _Out_writes_bytes_to_(SystemInformationLength, *ReturnLength)	PVOID						SystemInformation, 
+    _In_															ULONG						SystemInformationLength, 
+    _Out_opt_														PULONG						ReturnLength
 );
 
 
@@ -400,6 +414,77 @@ UTIL_QueryModuleInformation(
 
 lblCleanup:
 	CLOSE(ptModules, ExFreePool);
+
+	return eStatus;
+}
+
+_Use_decl_annotations_
+PAGEABLE
+NTSTATUS
+UTIL_QuerySystemInformation(
+	SYSTEM_INFORMATION_CLASS	eInfoClass,
+	PVOID *						ppvInformation,
+	PULONG						pcbInformation
+)
+{
+	NTSTATUS	eStatus			= STATUS_UNSUCCESSFUL;
+	PVOID		pvInformation	= NULL;
+	ULONG		cbInformation	= 0;
+	ULONG		nIteration		= 0;
+	ULONG		cbReturned		= 0;
+
+	PAGED_CODE();
+	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
+
+	if (NULL == ppvInformation)
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	cbInformation = PAGE_SIZE;
+
+	for (nIteration = 0; nIteration < QUERY_SYSTEM_INFO_ITERATIONS; ++nIteration)
+	{
+		// Allocate a buffer.
+		pvInformation = ExAllocatePoolWithTag(PagedPool, cbInformation, UTIL_POOL_TAG);
+		if (NULL == pvInformation)
+		{
+			eStatus = STATUS_INSUFFICIENT_RESOURCES;
+			goto lblCleanup;
+		}
+
+		// Try to obtain the information.
+		eStatus = ZwQuerySystemInformation(eInfoClass, pvInformation, cbInformation, &cbReturned);
+		if (NT_SUCCESS(eStatus))
+		{
+			break;
+		}
+
+		// Free the buffer.
+		CLOSE(pvInformation, ExFreePool);
+
+		// Try again with double the size.
+		cbInformation *= 2;
+	}
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Transfer ownership:
+	*ppvInformation = pvInformation;
+	pvInformation = NULL;
+
+	if (NULL != pcbInformation)
+	{
+		*pcbInformation = cbReturned;
+	}
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	CLOSE(pvInformation, ExFreePool);
 
 	return eStatus;
 }
