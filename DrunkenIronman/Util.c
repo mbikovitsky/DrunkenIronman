@@ -487,7 +487,7 @@ UTIL_ReadFile(
 	{
 		if (!ReadFile(hFile,
 					  (PBYTE)pvFileContents + (cbFileSize.QuadPart - cbRemaining),
-					  min(cbRemaining, MAXDWORD),
+					  (DWORD)min(cbRemaining, MAXDWORD),
 					  &cbBytesRead,
 					  NULL))
 		{
