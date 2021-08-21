@@ -353,7 +353,9 @@ driver_HandleVanity(
 	}
 
 	// Patch!
-	eStatus = CARPENTER_ApplyPatch(hCarpenter);
+	// On Windows 10 the size we obtain above is the size of the allocation, not of the message
+	// table, so it can be a bit larger. So we disable the check and hope for the best.
+	eStatus = CARPENTER_ApplyPatch(hCarpenter, !UTIL_IsWindows10OrGreater());
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;

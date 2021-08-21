@@ -122,7 +122,8 @@ CARPENTER_StageMessage(
 /**
  * Applies the prepared patch to the message table.
  *
- * @param[in]	hCarpenter	A patcher instance.
+ * @param[in]	hCarpenter				A patcher instance.
+ * @param[in]	bEnforceOriginalSize	Ensure that the new table is the same size as the original.
  *
  * @returns NTSTATUS
  *
@@ -133,5 +134,6 @@ _IRQL_requires_(PASSIVE_LEVEL)
 PAGEABLE
 NTSTATUS
 CARPENTER_ApplyPatch(
-	_In_	HCARPENTER	hCarpenter
+	_In_	HCARPENTER	hCarpenter,
+	_In_	BOOLEAN		bEnforceOriginalSize
 );

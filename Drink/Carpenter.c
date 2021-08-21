@@ -318,11 +318,12 @@ lblCleanup:
 	return eStatus;
 }
 
-_IRQL_requires_(PASSIVE_LEVEL)
+_Use_decl_annotations_
 PAGEABLE
 NTSTATUS
 CARPENTER_ApplyPatch(
-	_In_	HCARPENTER	hCarpenter
+	HCARPENTER	hCarpenter,
+	BOOLEAN		bEnforceOriginalSize
 )
 {
 	NTSTATUS	eStatus				= STATUS_UNSUCCESSFUL;
@@ -350,10 +351,21 @@ CARPENTER_ApplyPatch(
 	}
 
 	// Make sure the new table has the same size as the old one.
-	if (cbNewMessageTable != ptCarpenter->cbInImageMessageTable)
+	if (bEnforceOriginalSize)
 	{
-		eStatus = STATUS_BUFFER_TOO_SMALL;
-		goto lblCleanup;
+		if (cbNewMessageTable != ptCarpenter->cbInImageMessageTable)
+		{
+			eStatus = STATUS_BUFFER_TOO_SMALL;
+			goto lblCleanup;
+		}
+	}
+	else
+	{
+		if (cbNewMessageTable > ptCarpenter->cbInImageMessageTable)
+		{
+			eStatus = STATUS_BUFFER_TOO_SMALL;
+			goto lblCleanup;
+		}
 	}
 
 	ptMdl = IoAllocateMdl(ptCarpenter->pvInImageMessageTable,
