@@ -33,7 +33,6 @@ typedef struct _RECTANGLE
 	ULONG	nBitCount;
 	ULONG	cbPixels;
 	ULONG	fFlags;
-	ULONG	nReserved;
 	PVOID	pvPixels;
 	UCHAR	acReserved[40];
 } RECTANGLE, *PRECTANGLE;
@@ -44,6 +43,8 @@ typedef RECTANGLE CONST *PCRECTANGLE;
 
 #ifdef _M_X64
 #define QR_RECTANGLE_POINTER_OFFSET (0xF8)
+#elif _M_IX86
+#define QR_RECTANGLE_POINTER_OFFSET (0xD0)
 #else
 #error Unsupported architecture
 #endif
@@ -56,6 +57,15 @@ STATIC PATTERN_ELEMENT CONST g_atGetDisplayContextPattern[] = {
 	MATCH_EXACT(0x48),	// LEA RAX, [RIP + ?]
 	MATCH_EXACT(0x8D),
 	MATCH_EXACT(0x05),
+	MATCH_ANY,
+	MATCH_ANY,
+	MATCH_ANY,
+	MATCH_ANY,
+	MATCH_EXACT(0xC3)	// RET
+};
+#elif _M_IX86
+STATIC PATTERN_ELEMENT CONST g_atGetDisplayContextPattern[] = {
+	MATCH_EXACT(0xB8),	// MOV EAX, ?
 	MATCH_ANY,
 	MATCH_ANY,
 	MATCH_ANY,
@@ -79,9 +89,14 @@ QRPATCH_Initialize(VOID)
 	NTSTATUS					eStatus					= STATUS_UNSUCCESSFUL;
 	PAUX_MODULE_EXTENDED_INFO	ptModules				= NULL;
 	ULONG						nModules				= 0;
-	STRING						sSectionName			= RTL_CONSTANT_STRING("PAGEBGFX");
-	PVOID						pvSection				= NULL;
-	ULONG						cbSection				= 0;
+	STRING						sCodeSectionName		= RTL_CONSTANT_STRING("PAGEBGFX");
+	PVOID						pvCodeSection			= NULL;
+	ULONG						cbCodeSection			= 0;
+#ifdef _M_IX86
+	STRING						sDataSectionName		= RTL_CONSTANT_STRING(".data");
+	PVOID						pvDataSection			= NULL;
+	ULONG						cbDataSection			= 0;
+#endif
 	PUCHAR						pcCurrent				= NULL;
 	BOOLEAN						bMatch					= FALSE;
 	PFN_BG_GET_DISPLAY_CONTEXT	pfnBgGetDisplayContext	= NULL;
@@ -103,20 +118,28 @@ QRPATCH_Initialize(VOID)
 		goto lblCleanup;
 	}
 
-	eStatus = IMAGEPARSE_GetSection(ptModules[0].tBasicInfo.pvImageBase, &sSectionName, &pvSection, &cbSection);
+	eStatus = IMAGEPARSE_GetSection(ptModules[0].tBasicInfo.pvImageBase, &sCodeSectionName, &pvCodeSection, &cbCodeSection);
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
 	}
 
-	if (cbSection < ARRAYSIZE(g_atGetDisplayContextPattern))
+#ifdef _M_IX86
+	eStatus = IMAGEPARSE_GetSection(ptModules[0].tBasicInfo.pvImageBase, &sDataSectionName, &pvDataSection, &cbDataSection);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+#endif
+
+	if (cbCodeSection < ARRAYSIZE(g_atGetDisplayContextPattern))
 	{
 		eStatus = STATUS_BUFFER_TOO_SMALL;
 		goto lblCleanup;
 	}
 
-	for (pcCurrent = (PUCHAR)pvSection;
-		 pcCurrent <= (PUCHAR)RtlOffsetToPointer(pvSection, cbSection - ARRAYSIZE(g_atGetDisplayContextPattern));
+	for (pcCurrent = (PUCHAR)pvCodeSection;
+		 pcCurrent <= (PUCHAR)RtlOffsetToPointer(pvCodeSection, cbCodeSection - ARRAYSIZE(g_atGetDisplayContextPattern));
 		 pcCurrent += 1)
 	{
 		eStatus = MATCH_IsMatch(g_atGetDisplayContextPattern,
@@ -130,6 +153,19 @@ QRPATCH_Initialize(VOID)
 
 		if (bMatch)
 		{
+#ifdef _M_IX86
+			{
+				ULONG_PTR	pvAddress	= *(ULONG_PTR UNALIGNED *)(pcCurrent + 1);
+
+				// We're matching against MOV EAX, ? so check that the address is within the data
+				// section and not just some random number.
+				if (pvAddress < (ULONG_PTR)pvDataSection || pvAddress >= (ULONG_PTR)RtlOffsetToPointer(pvDataSection, cbDataSection))
+				{
+					continue;
+				}
+			}
+#endif
+
 			if (NULL != pfnBgGetDisplayContext)
 			{
 				// More than one hit
