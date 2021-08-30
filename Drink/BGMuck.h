@@ -63,3 +63,14 @@ BGMUCK_SetBitmap(
 	_In_reads_bytes_(cbPixels)	PVOID	pvPixels,
 	_In_						ULONG	cbPixels
 );
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+NTSTATUS
+BGMUCK_AllocateShadowFramebuffer(
+	_In_	ULONG	nWidth,
+	_In_	ULONG	nHeight
+);
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+BGMUCK_FreeShadowFramebuffer(VOID);

@@ -8,8 +8,10 @@
 
 /** Headers *************************************************************/
 #include <ntifs.h>
+#include <ntintsafe.h>
 
 #include <Common.h>
+#include <Drink.h>
 
 #include "Util.h"
 #include "Match.h"
@@ -68,6 +70,8 @@ typedef FN_DPI_SYSTEM_DISPLAY_WRITE *PFN_DPI_SYSTEM_DISPLAY_WRITE;
 
 /** Constants ***********************************************************/
 
+#define BGMUCK_POOL_TAG ('kcuM')
+
 #ifdef _M_X64
 #define QR_RECTANGLE_POINTER_OFFSET (0xF8)
 #elif _M_IX86
@@ -114,6 +118,8 @@ STATIC PATTERN_ELEMENT CONST g_atGetDisplayContextPattern[] = {
 STATIC PRECTANGLE g_ptQrRectangle = NULL;
 
 STATIC PFN_DPI_SYSTEM_DISPLAY_WRITE * g_ppfnDpiSystemDisplayWrite = NULL;
+
+STATIC PFRAMEBUFFER_DUMP g_ptShadowFramebuffer = NULL;
 
 
 /** Functions ***********************************************************/
@@ -317,4 +323,77 @@ BGMUCK_SetBitmap(
 
 lblCleanup:
 	return eStatus;
+}
+
+_Use_decl_annotations_
+NTSTATUS
+BGMUCK_AllocateShadowFramebuffer(
+	ULONG	nWidth,
+	ULONG	nHeight
+)
+{
+	NTSTATUS			eStatus				= STATUS_UNSUCCESSFUL;
+	SIZE_T				cbSize				= 0;
+	PFRAMEBUFFER_DUMP	ptFramebuffer		= NULL;
+	PVOID				pvOldFramebuffer	= NULL;
+
+	eStatus = RtlSIZETMult(nWidth, nHeight, &cbSize);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Allocate 4 bytes per pixel, to accomodate the largest BPP value
+	eStatus = RtlSIZETMult(cbSize, 4, &cbSize);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Add the header
+	eStatus = RtlSIZETAdd(cbSize, FIELD_OFFSET(FRAMEBUFFER_DUMP, acPixels), &cbSize);
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Buffer has to be page-aligned, due to bugcheck callback requirements
+	if (cbSize < PAGE_SIZE)
+	{
+		cbSize = PAGE_SIZE;
+	}
+
+	ptFramebuffer = ExAllocatePoolWithTag(NonPagedPoolNx, cbSize, BGMUCK_POOL_TAG);
+	if (NULL == ptFramebuffer)
+	{
+		eStatus = STATUS_INSUFFICIENT_RESOURCES;
+		goto lblCleanup;
+	}
+	RtlZeroMemory(ptFramebuffer, cbSize);
+
+	ptFramebuffer->nWidth = nWidth;
+	ptFramebuffer->nHeight = nHeight;
+	ptFramebuffer->nBitCount = 0;
+
+	// Transfer ownership:
+	pvOldFramebuffer = InterlockedExchangePointer(&g_ptShadowFramebuffer, ptFramebuffer);
+	ptFramebuffer = NULL;
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	CLOSE(pvOldFramebuffer, ExFreePool);
+	CLOSE(ptFramebuffer, ExFreePool);
+
+	return eStatus;
+}
+
+_Use_decl_annotations_
+VOID
+BGMUCK_FreeShadowFramebuffer(VOID)
+{
+	PVOID	pvOldFramebuffer	= NULL;
+
+	pvOldFramebuffer = InterlockedExchangePointer(&g_ptShadowFramebuffer, NULL);
+	CLOSE(pvOldFramebuffer, ExFreePool);
 }
