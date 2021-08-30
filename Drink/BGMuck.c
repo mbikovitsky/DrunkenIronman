@@ -20,12 +20,6 @@
 
 /** Typedefs ************************************************************/
 
-typedef
-PVOID
-NTAPI
-FN_BG_GET_DISPLAY_CONTEXT(VOID);
-typedef FN_BG_GET_DISPLAY_CONTEXT *PFN_BG_GET_DISPLAY_CONTEXT;
-
 typedef struct _RECTANGLE
 {
 	ULONG	nHeight;
@@ -38,6 +32,39 @@ typedef struct _RECTANGLE
 } RECTANGLE, *PRECTANGLE;
 typedef RECTANGLE CONST *PCRECTANGLE;
 
+typedef struct _DXG_RECTANGLE
+{
+	ULONG	nHeight;
+	ULONG	nWidth;
+	ULONG	nBitCount;
+	ULONG	cbPixels;
+	PVOID	pvPixels;
+} DXG_RECTANGLE, *PDXG_RECTANGLE;
+typedef DXG_RECTANGLE CONST *PCDXG_RECTANGLE;
+
+typedef struct _DXG_POSITION
+{
+	ULONG	nPositionX;
+	ULONG	nPositionY;
+} DXG_POSITION, *PDXG_POSITION;
+typedef DXG_POSITION CONST *PCDXG_POSITION;
+
+typedef
+PVOID
+NTAPI
+FN_BG_GET_DISPLAY_CONTEXT(VOID);
+typedef FN_BG_GET_DISPLAY_CONTEXT *PFN_BG_GET_DISPLAY_CONTEXT;
+
+typedef
+PVOID
+NTAPI
+FN_DPI_SYSTEM_DISPLAY_WRITE(
+	_In_	PDXG_RECTANGLE	ptRectangle,
+	_In_	PDXG_POSITION	ptPosition,
+	_In_	UCHAR			cReserved
+);
+typedef FN_DPI_SYSTEM_DISPLAY_WRITE *PFN_DPI_SYSTEM_DISPLAY_WRITE;
+
 
 /** Constants ***********************************************************/
 
@@ -45,6 +72,14 @@ typedef RECTANGLE CONST *PCRECTANGLE;
 #define QR_RECTANGLE_POINTER_OFFSET (0xF8)
 #elif _M_IX86
 #define QR_RECTANGLE_POINTER_OFFSET (0xD0)
+#else
+#error Unsupported architecture
+#endif
+
+#ifdef _M_X64
+#define DPI_SYSTEM_DISPLAY_WRITE_POINTER_OFFSET (0x20)
+#elif _M_IX86
+#define DPI_SYSTEM_DISPLAY_WRITE_POINTER_OFFSET (0x18)
 #else
 #error Unsupported architecture
 #endif
@@ -78,6 +113,8 @@ STATIC PATTERN_ELEMENT CONST g_atGetDisplayContextPattern[] = {
 
 STATIC PRECTANGLE g_ptQrRectangle = NULL;
 
+STATIC PFN_DPI_SYSTEM_DISPLAY_WRITE * g_ppfnDpiSystemDisplayWrite = NULL;
+
 
 /** Functions ***********************************************************/
 
@@ -86,22 +123,23 @@ PAGEABLE
 NTSTATUS
 BGMUCK_Initialize(VOID)
 {
-	NTSTATUS					eStatus					= STATUS_UNSUCCESSFUL;
-	PAUX_MODULE_EXTENDED_INFO	ptModules				= NULL;
-	ULONG						nModules				= 0;
-	STRING						sCodeSectionName		= RTL_CONSTANT_STRING("PAGEBGFX");
-	PVOID						pvCodeSection			= NULL;
-	ULONG						cbCodeSection			= 0;
+	NTSTATUS						eStatus						= STATUS_UNSUCCESSFUL;
+	PAUX_MODULE_EXTENDED_INFO		ptModules					= NULL;
+	ULONG							nModules					= 0;
+	STRING							sCodeSectionName			= RTL_CONSTANT_STRING("PAGEBGFX");
+	PVOID							pvCodeSection				= NULL;
+	ULONG							cbCodeSection				= 0;
 #ifdef _M_IX86
-	STRING						sDataSectionName		= RTL_CONSTANT_STRING(".data");
-	PVOID						pvDataSection			= NULL;
-	ULONG						cbDataSection			= 0;
+	STRING							sDataSectionName			= RTL_CONSTANT_STRING(".data");
+	PVOID							pvDataSection				= NULL;
+	ULONG							cbDataSection				= 0;
 #endif
-	PUCHAR						pcCurrent				= NULL;
-	BOOLEAN						bMatch					= FALSE;
-	PFN_BG_GET_DISPLAY_CONTEXT	pfnBgGetDisplayContext	= NULL;
-	PVOID						pvDisplayContext		= NULL;
-	PRECTANGLE					ptRectangle				= NULL;
+	PUCHAR							pcCurrent					= NULL;
+	BOOLEAN							bMatch						= FALSE;
+	PFN_BG_GET_DISPLAY_CONTEXT		pfnBgGetDisplayContext		= NULL;
+	PVOID							pvDisplayContext			= NULL;
+	PRECTANGLE						ptRectangle					= NULL;
+	PFN_DPI_SYSTEM_DISPLAY_WRITE *	ppfnDpiSystemDisplayWrite	= NULL;
 
 	PAGED_CODE();
 	NT_ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
@@ -198,7 +236,15 @@ BGMUCK_Initialize(VOID)
 		goto lblCleanup;
 	}
 
+	ppfnDpiSystemDisplayWrite = (PFN_DPI_SYSTEM_DISPLAY_WRITE *)(ULONG_PTR)RtlOffsetToPointer(pvDisplayContext, DPI_SYSTEM_DISPLAY_WRITE_POINTER_OFFSET);
+	if (NULL == *ppfnDpiSystemDisplayWrite)
+	{
+		eStatus = STATUS_NOT_FOUND;
+		goto lblCleanup;
+	}
+
 	g_ptQrRectangle = ptRectangle;
+	g_ppfnDpiSystemDisplayWrite = ppfnDpiSystemDisplayWrite;
 
 	eStatus = STATUS_SUCCESS;
 
