@@ -1,9 +1,9 @@
 /**
- * @file QRPatch.c
+ * @file BGMuck.c
  * @author biko
  * @date 2021-08-20
  *
- * Patching of the QR bugcheck image on Windows 10 - implementation.
+ * Mucking around with the bugcheck drawing machinery - implementation.
  */
 
 /** Headers *************************************************************/
@@ -15,7 +15,7 @@
 #include "Match.h"
 #include "ImageParse.h"
 
-#include "QRPatch.h"
+#include "BGMuck.h"
 
 
 /** Typedefs ************************************************************/
@@ -84,7 +84,7 @@ STATIC PRECTANGLE g_ptQrRectangle = NULL;
 _Use_decl_annotations_
 PAGEABLE
 NTSTATUS
-QRPATCH_Initialize(VOID)
+BGMUCK_Initialize(VOID)
 {
 	NTSTATUS					eStatus					= STATUS_UNSUCCESSFUL;
 	PAUX_MODULE_EXTENDED_INFO	ptModules				= NULL;
@@ -210,7 +210,7 @@ lblCleanup:
 
 _Use_decl_annotations_
 NTSTATUS
-QRPATCH_GetBitmapInfo(
+BGMUCK_GetBitmapInfo(
 	PBITMAP_INFO	ptBitmapInfo
 )
 {
@@ -240,7 +240,7 @@ lblCleanup:
 
 _Use_decl_annotations_
 NTSTATUS
-QRPATCH_SetBitmap(
+BGMUCK_SetBitmap(
 	PVOID	pvPixels,
 	ULONG	cbPixels
 )

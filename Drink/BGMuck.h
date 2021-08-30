@@ -1,9 +1,9 @@
 /**
- * @file QRPatch.h
+ * @file BGMuck.h
  * @author biko
  * @date 2021-08-20
  *
- * Patching of the QR bugcheck image on Windows 10.
+ * Mucking around with the bugcheck drawing machinery.
  */
 #pragma once
 
@@ -34,7 +34,7 @@ typedef BITMAP_INFO CONST *PCBITMAP_INFO;
 _IRQL_requires_(PASSIVE_LEVEL)
 PAGEABLE
 NTSTATUS
-QRPATCH_Initialize(VOID);
+BGMUCK_Initialize(VOID);
 
 /**
  * @brief Retrieves information about the current QR bitmap.
@@ -44,7 +44,7 @@ QRPATCH_Initialize(VOID);
  * @return NTSTATUS
 */
 NTSTATUS
-QRPATCH_GetBitmapInfo(
+BGMUCK_GetBitmapInfo(
 	_Out_	PBITMAP_INFO	ptBitmapInfo
 );
 
@@ -56,10 +56,10 @@ QRPATCH_GetBitmapInfo(
  *
  * @return NTSTATUS
  *
- * @remark The pixel data should match the format returned by QRPATCH_GetBitmapInfo.
+ * @remark The pixel data should match the format returned by BGMUCK_GetBitmapInfo.
 */
 NTSTATUS
-QRPATCH_SetBitmap(
+BGMUCK_SetBitmap(
 	_In_reads_bytes_(cbPixels)	PVOID	pvPixels,
 	_In_						ULONG	cbPixels
 );
