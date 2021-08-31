@@ -22,6 +22,11 @@
 
 /** Typedefs ************************************************************/
 
+/**
+ * @brief Contains information about a single big pool allocation.
+ *
+ * @see https://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/ex/sysinfo/bigpool_entry.htm
+ */
 #pragma warning(push)
 #pragma warning(disable: 4201)	// nonstandard extension used: nameless struct/union
 typedef struct _SYSTEM_BIGPOOL_ENTRY
@@ -43,6 +48,11 @@ typedef struct _SYSTEM_BIGPOOL_ENTRY
 typedef SYSTEM_BIGPOOL_ENTRY CONST *PCSYSTEM_BIGPOOL_ENTRY;
 #pragma warning(pop)
 
+/**
+ * @brief Contains information about big pool allocations.
+ *
+ * @see https://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/ex/sysinfo/bigpool.htm
+*/
 typedef struct _SYSTEM_BIGPOOL_INFORMATION
 {
 	ULONG					Count;
@@ -53,6 +63,11 @@ typedef SYSTEM_BIGPOOL_INFORMATION CONST *PCSYSTEM_BIGPOOL_INFORMATION;
 
 /** Enums ***************************************************************/
 
+/**
+ * @brief Information classes for ZwQuerySystemInformation.
+ *
+ * @see https://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/ex/sysinfo/query.htm
+*/
 typedef enum _SYSTEM_INFORMATION_CLASS
 {
 	SystemBigPoolInformation = 0x42,
