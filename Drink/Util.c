@@ -10,6 +10,7 @@
 #include <ntifs.h>
 #include <ntintsafe.h>
 #include <ntstrsafe.h>
+#include <aux_klib.h>
 
 #include <Common.h>
 
@@ -31,33 +32,8 @@
 
 /** Forward Declarations ************************************************/
 
-/**
- * Retrieves the list of loaded kernel modules.
- *
- * @param[in,out]	pcbBuffer	On input, contains the size of
- *								the buffer at pvQueryInfo.
- *								On output, contains the required
- *								buffer size.
- * @param[in]		cbElement	Size of the element to retrieve.
- *								Can be either sizeof(AUX_MODULE_BASIC_INFO)
- *								or sizeof(AUX_MODULE_EXTENDED_INFO).
- * @param[out]		pcbBuffer	Buffer to receive the list.
- *
- * @returns NTSTATUS
- *
- * @remark Call AuxKlibInitialize before invoking this routine.
- * @remark Adapted from aux_klib.h.
- */
 _IRQL_requires_(PASSIVE_LEVEL)
-NTSTATUS
-NTAPI
-AuxKlibQueryModuleInformation(
-	_Inout_								PULONG	pcbBuffer,
-	_In_								ULONG	cbElement,
-	_Out_writes_bytes_opt_(*pcbBuffer)	PVOID	pvQueryInfo
-);
-
-_IRQL_requires_(PASSIVE_LEVEL)
+NTSYSAPI
 NTSTATUS 
 ZwQuerySystemInformation (
     _In_															SYSTEM_INFORMATION_CLASS	SystemInformationClass, 
@@ -397,7 +373,7 @@ UTIL_QueryModuleInformation(
 		 ptCurrentModule < (PAUX_MODULE_EXTENDED_INFO)RtlOffsetToPointer(ptModules, cbModules);
 		 ++ptCurrentModule)
 	{
-		if (NULL == ptCurrentModule->tBasicInfo.pvImageBase)
+		if (NULL == ptCurrentModule->BasicInfo.ImageBase)
 		{
 			break;
 		}

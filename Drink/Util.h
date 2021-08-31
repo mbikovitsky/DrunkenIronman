@@ -9,16 +9,7 @@
 
 /** Headers *************************************************************/
 #include <ntifs.h>
-
-
-/** Constants ***********************************************************/
-
-/**
- * The maximum length of a loaded module's filename.
- *
- * @remark Adapted from aux_klib.h.
- */
-#define AUX_KLIB_MODULE_PATH_LEN (256)
+#include <aux_klib.h>
 
 
 /** Macros **************************************************************/
@@ -30,29 +21,6 @@
 
 
 /** Typedefs ************************************************************/
-
-/**
- * Contains basic information about a loaded module.
- *
- * @remark Adapted from aux_klib.h.
- */
-typedef struct _AUX_MODULE_BASIC_INFO
-{
-	PVOID	pvImageBase;
-} AUX_MODULE_BASIC_INFO, *PAUX_MODULE_BASIC_INFO;
-
-/**
- * Contains extended information about a loaded module.
- *
- * @remark Adapted from aux_klib.h.
- */
-typedef struct _AUX_MODULE_EXTENDED_INFO
-{
-	AUX_MODULE_BASIC_INFO	tBasicInfo;
-	ULONG					cbImage;
-	USHORT					cbFileNameOffset;
-	UCHAR					acFullPathName[AUX_KLIB_MODULE_PATH_LEN];
-} AUX_MODULE_EXTENDED_INFO, *PAUX_MODULE_EXTENDED_INFO;
 
 #pragma warning(push)
 #pragma warning(disable: 4201)	// nonstandard extension used: nameless struct/union

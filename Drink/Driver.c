@@ -332,7 +332,7 @@ driver_HandleVanity(
 		}
 
 		// Prepare to patch the message table of ntoskrnl.exe.
-		eStatus = CARPENTER_Create(ptModules[0].tBasicInfo.pvImageBase,
+		eStatus = CARPENTER_Create(ptModules[0].BasicInfo.ImageBase,
 								   RT_MESSAGETABLE,
 								   1,
 								   MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),

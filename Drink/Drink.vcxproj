@@ -71,7 +71,7 @@
       <OmitFramePointers>true</OmitFramePointers>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <CreateHotpatchableImage>false</CreateHotpatchableImage>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);_WIN32_WINNT=0x0501;WINVER=0x0501;NTDDI_VERSION=0x05010300;STATIC=static;POOL_NX_OPTIN=1</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);STATIC=static;POOL_NX_OPTIN=1</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -91,7 +91,7 @@
       <WarningLevel>Level4</WarningLevel>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <CreateHotpatchableImage>false</CreateHotpatchableImage>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);_WIN32_WINNT=0x0501;WINVER=0x0501;NTDDI_VERSION=0x05010300;STATIC=static;POOL_NX_OPTIN=1</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);STATIC=static;POOL_NX_OPTIN=1</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
