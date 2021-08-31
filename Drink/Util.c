@@ -25,9 +25,9 @@
 #define UTIL_POOL_TAG (RtlUlongByteSwap('Util'))
 
 /**
- * Number of iterations to use when querying for system information.
+ * Number of iterations to use when querying for information.
  */
-#define QUERY_SYSTEM_INFO_ITERATIONS (10)
+#define QUERY_INFO_ITERATIONS (10)
 
 
 /** Forward Declarations ************************************************/
@@ -40,6 +40,25 @@ ZwQuerySystemInformation (
     _Out_writes_bytes_to_(SystemInformationLength, *ReturnLength)	PVOID						SystemInformation, 
     _In_															ULONG						SystemInformationLength, 
     _Out_opt_														PULONG						ReturnLength
+);
+
+/**
+ * @brief Returns the contents of an object directory.
+ *
+ * @see https://docs.microsoft.com/en-us/windows/win32/devnotes/ntquerydirectoryobject
+*/
+_IRQL_requires_(PASSIVE_LEVEL)
+NTSTATUS
+NTSYSAPI
+NTAPI
+ZwQueryDirectoryObject(
+	_In_		HANDLE	DirectoryHandle,
+	_Out_opt_	PVOID	Buffer,
+	_In_		ULONG	Length,
+	_In_		BOOLEAN	ReturnSingleEntry,
+	_In_		BOOLEAN	RestartScan,
+	_Inout_		PULONG	Context,
+	_Out_opt_	PULONG	ReturnLength
 );
 
 
@@ -420,7 +439,7 @@ UTIL_QuerySystemInformation(
 
 	cbInformation = PAGE_SIZE;
 
-	for (nIteration = 0; nIteration < QUERY_SYSTEM_INFO_ITERATIONS; ++nIteration)
+	for (nIteration = 0; nIteration < QUERY_INFO_ITERATIONS; ++nIteration)
 	{
 		// Allocate a buffer.
 		pvInformation = ExAllocatePoolWithTag(PagedPool, cbInformation, UTIL_POOL_TAG);
@@ -456,6 +475,72 @@ UTIL_QuerySystemInformation(
 	{
 		*pcbInformation = cbReturned;
 	}
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	CLOSE(pvInformation, ExFreePool);
+
+	return eStatus;
+}
+
+_Use_decl_annotations_
+PAGEABLE
+NTSTATUS
+UTIL_GetObjectDirectoryContents(
+	HANDLE							hDirectory,
+	POBJECT_DIRECTORY_INFORMATION *	pptObjectInfos
+)
+{
+	NTSTATUS	eStatus			= STATUS_UNSUCCESSFUL;
+	PVOID		pvInformation	= NULL;
+	ULONG		cbInformation	= 0;
+	ULONG		nIteration		= 0;
+	ULONG		cbReturned		= 0;
+	ULONG		nContext		= 0;
+
+	PAGED_CODE();
+	NT_ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
+
+	if (NULL == hDirectory || NULL == pptObjectInfos)
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	cbInformation = PAGE_SIZE;
+
+	for (nIteration = 0; nIteration < QUERY_INFO_ITERATIONS; ++nIteration)
+	{
+		// Allocate a buffer.
+		pvInformation = ExAllocatePoolWithTag(PagedPool, cbInformation, UTIL_POOL_TAG);
+		if (NULL == pvInformation)
+		{
+			eStatus = STATUS_INSUFFICIENT_RESOURCES;
+			goto lblCleanup;
+		}
+
+		// Try to obtain the information.
+		eStatus = ZwQueryDirectoryObject(hDirectory, pvInformation, cbInformation, FALSE, TRUE, &nContext, &cbReturned);
+		if (NT_SUCCESS(eStatus) && STATUS_MORE_ENTRIES != eStatus)
+		{
+			break;
+		}
+
+		// Free the buffer.
+		CLOSE(pvInformation, ExFreePool);
+
+		// Try again with double the size.
+		cbInformation *= 2;
+	}
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Transfer ownership:
+	*pptObjectInfos = pvInformation;
+	pvInformation = NULL;
 
 	eStatus = STATUS_SUCCESS;
 

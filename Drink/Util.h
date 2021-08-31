@@ -60,6 +60,18 @@ typedef struct _SYSTEM_BIGPOOL_INFORMATION
 } SYSTEM_BIGPOOL_INFORMATION, *PSYSTEM_BIGPOOL_INFORMATION;
 typedef SYSTEM_BIGPOOL_INFORMATION CONST *PCSYSTEM_BIGPOOL_INFORMATION;
 
+/**
+ * @brief Contains information about a named object.
+ *
+ * @see https://docs.microsoft.com/en-us/windows/win32/devnotes/ntquerydirectoryobject
+*/
+typedef struct _OBJECT_DIRECTORY_INFORMATION
+{
+	UNICODE_STRING	Name;
+	UNICODE_STRING	TypeName;
+} OBJECT_DIRECTORY_INFORMATION, *POBJECT_DIRECTORY_INFORMATION;
+typedef OBJECT_DIRECTORY_INFORMATION CONST *PCOBJECT_DIRECTORY_INFORMATION;
+
 
 /** Enums ***************************************************************/
 
@@ -194,4 +206,22 @@ UTIL_QuerySystemInformation(
 	_In_										SYSTEM_INFORMATION_CLASS	eInfoClass,
 	_Outptr_result_bytebuffer_(*pcbInformation)	PVOID *						ppvInformation,
 	_Out_opt_									PULONG						pcbInformation
+);
+
+/**
+ * @brief Returns the contents of an object directory.
+ *
+ * @param hDirectory		Directory to query.
+ * @param pptObjectInfos	Will receive the object information
+ *
+ * @return NTSTATUS
+ *
+ * @remark The returned buffer is null-terminated, i.e. the last element is all zeroes.
+*/
+_IRQL_requires_(PASSIVE_LEVEL)
+PAGEABLE
+NTSTATUS
+UTIL_GetObjectDirectoryContents(
+	_In_		HANDLE							hDirectory,
+	_Outptr_	POBJECT_DIRECTORY_INFORMATION *	pptObjectInfos
 );
