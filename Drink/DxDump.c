@@ -36,7 +36,6 @@
 	)																			\
 	{																			\
 		C_ASSERT((nIndex) < ARRAYSIZE(g_atHookContexts));						\
-		__debugbreak();															\
 		dxdump_SystemDisplayWriteHook(MiniportDeviceContext,					\
 									  Source,									\
 									  SourceWidth,								\
@@ -69,6 +68,10 @@ typedef HOOK_CONTEXT CONST *PCHOOK_CONTEXT;
 STATIC PFRAMEBUFFER_DUMP g_ptShadowFramebuffer = NULL;
 
 STATIC HOOK_CONTEXT g_atHookContexts[5] = { 0 };
+
+STATIC KBUGCHECK_REASON_CALLBACK_RECORD g_tCallbackRecord = { 0 };
+
+STATIC BOOLEAN g_bCallbackRegistered = FALSE;
 
 
 /** Functions ***********************************************************/
@@ -119,6 +122,59 @@ STATIC PDXGKDDI_SYSTEM_DISPLAY_WRITE CONST g_apfnTrampolines[] = {
 
 C_ASSERT(ARRAYSIZE(g_apfnTrampolines) == ARRAYSIZE(g_atHookContexts));
 
+STATIC
+VOID
+dxdump_BugCheckSecondaryDumpDataCallback(
+	_In_	KBUGCHECK_CALLBACK_REASON			eReason,
+	_In_	PKBUGCHECK_REASON_CALLBACK_RECORD	ptRecord,
+	_Inout_	PVOID								pvReasonSpecificData,
+	_In_	ULONG								cbReasonSpecificData
+)
+{
+	PKBUGCHECK_SECONDARY_DUMP_DATA	ptSecondaryDumpData	= pvReasonSpecificData;
+	ULONG							cbData				= 0;
+
+#ifndef DBG
+	UNREFERENCED_PARAMETER(eReason);
+	UNREFERENCED_PARAMETER(ptRecord);
+	UNREFERENCED_PARAMETER(cbReasonSpecificData);
+#endif // !DBG
+
+	NT_ASSERT(KbCallbackSecondaryDumpData == eReason);
+	NT_ASSERT(NULL != ptRecord);
+	NT_ASSERT(NULL != pvReasonSpecificData);
+	NT_ASSERT(sizeof(*ptSecondaryDumpData) == cbReasonSpecificData);
+
+	if (NULL == g_ptShadowFramebuffer)
+	{
+		ptSecondaryDumpData->OutBuffer = NULL;
+		ptSecondaryDumpData->OutBufferLength = 0;
+		goto lblCleanup;
+	}
+
+	// This is safe since validation has already been performed in dxdump_AllocateFramebuffer
+	cbData = UFIELD_OFFSET(FRAMEBUFFER_DUMP, acPixels[g_ptShadowFramebuffer->nWidth * g_ptShadowFramebuffer->nHeight * 4]);
+
+	if (cbData > ptSecondaryDumpData->MaximumAllowed)
+	{
+		ptSecondaryDumpData->OutBuffer = NULL;
+		ptSecondaryDumpData->OutBufferLength = 0;
+		goto lblCleanup;
+	}
+
+	NT_ASSERT(
+		(NULL == ptSecondaryDumpData->OutBuffer) ||
+		(ptSecondaryDumpData->InBuffer == ptSecondaryDumpData->OutBuffer)
+	);
+
+	ptSecondaryDumpData->OutBuffer = g_ptShadowFramebuffer;
+	ptSecondaryDumpData->OutBufferLength = cbData;
+	ptSecondaryDumpData->Guid = g_tFramebufferDumpGuid;
+
+lblCleanup:
+	return;
+}
+
 _IRQL_requires_max_(DISPATCH_LEVEL)
 STATIC
 NTSTATUS
@@ -129,26 +185,26 @@ dxdump_AllocateFramebuffer(
 )
 {
 	NTSTATUS			eStatus			= STATUS_UNSUCCESSFUL;
-	SIZE_T				cbSize			= 0;
+	ULONG				cbSize			= 0;
 	PFRAMEBUFFER_DUMP	ptFramebuffer	= NULL;
 
 	NT_ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
 
-	eStatus = RtlSIZETMult(nMaxWidth, nMaxHeight, &cbSize);
+	eStatus = RtlULongMult(nMaxWidth, nMaxHeight, &cbSize);
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
 	}
 
 	// Allocate 4 bytes per pixel, as that's what Windows gives us
-	eStatus = RtlSIZETMult(cbSize, 4, &cbSize);
+	eStatus = RtlULongMult(cbSize, 4, &cbSize);
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
 	}
 
 	// Add the header
-	eStatus = RtlSIZETAdd(cbSize, FIELD_OFFSET(FRAMEBUFFER_DUMP, acPixels), &cbSize);
+	eStatus = RtlULongAdd(cbSize, FIELD_OFFSET(FRAMEBUFFER_DUMP, acPixels), &cbSize);
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
@@ -192,7 +248,6 @@ DXDUMP_Initialize(
 )
 {
 	NTSTATUS			eStatus				= STATUS_UNSUCCESSFUL;
-	PFRAMEBUFFER_DUMP	ptShadowFramebuffer	= NULL;
 	PDISPLAY_DRIVER		ptDisplayDrivers	= NULL;
 	ULONG				nDisplayDrivers		= 0;
 	ULONG				nIndex				= 0;
@@ -200,7 +255,7 @@ DXDUMP_Initialize(
 	PAGED_CODE();
 	NT_ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
 
-	eStatus = dxdump_AllocateFramebuffer(nMaxWidth, nMaxHeight, &ptShadowFramebuffer);
+	eStatus = dxdump_AllocateFramebuffer(nMaxWidth, nMaxHeight, &g_ptShadowFramebuffer);
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
@@ -218,9 +273,16 @@ DXDUMP_Initialize(
 		goto lblCleanup;
 	}
 
-	// Transfer ownership:
-	g_ptShadowFramebuffer = ptShadowFramebuffer;
-	ptShadowFramebuffer = NULL;
+	KeInitializeCallbackRecord(&g_tCallbackRecord);
+	if (!KeRegisterBugCheckReasonCallback(&g_tCallbackRecord,
+										  &dxdump_BugCheckSecondaryDumpDataCallback,
+										  KbCallbackSecondaryDumpData,
+										  (PUCHAR)"DxDump"))
+	{
+		eStatus = STATUS_BAD_DATA;
+		goto lblCleanup;
+	}
+	g_bCallbackRegistered = TRUE;
 
 	// NO FAILURE PAST THIS POINT
 	// Unhooking is a pain here, so we prefer to not do that.
@@ -248,7 +310,10 @@ DXDUMP_Initialize(
 
 lblCleanup:
 	DXUTIL_FREE_DISPLAY_DRIVERS(ptDisplayDrivers, nDisplayDrivers);
-	CLOSE(ptShadowFramebuffer, ExFreePool);
+	if (!NT_SUCCESS(eStatus))
+	{
+		DXDUMP_Shutdown();
+	}
 
 	return eStatus;
 }
@@ -268,6 +333,12 @@ DXDUMP_Shutdown(VOID)
 		g_atHookContexts[nIndex].ptInitializationData->DxgkDdiSystemDisplayWrite = g_atHookContexts[nIndex].pfnOriginal;
 		CLOSE(g_atHookContexts[nIndex].ptDriverObject, ObfDereferenceObject);
 		RtlZeroMemory(&g_atHookContexts[nIndex], sizeof(g_atHookContexts[nIndex]));
+	}
+
+	if (g_bCallbackRegistered)
+	{
+		(VOID)KeDeregisterBugCheckReasonCallback(&g_tCallbackRecord);
+		g_bCallbackRegistered = FALSE;
 	}
 
 	CLOSE(g_ptShadowFramebuffer, ExFreePool);

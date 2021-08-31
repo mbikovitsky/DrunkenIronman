@@ -44,6 +44,13 @@ EXTERN_C CONST GUID DECLSPEC_SELECTANY g_tVgaDumpGuid =
 { 0xab490092, 0x9446, 0x4088, { 0x90, 0x1b, 0xb6, 0xa8, 0x01, 0xcd, 0x6c, 0x75 } };
 
 /**
+ * {80AEEC5F-DE92-435D-9A05-D23ECAD9272E}
+ * GUID for tagging the saved framebuffer dump in the dump file.
+ */
+EXTERN_C CONST GUID DECLSPEC_SELECTANY g_tFramebufferDumpGuid = 
+{ 0x80aeec5f, 0xde92, 0x435d, { 0x9a, 0x5, 0xd2, 0x3e, 0xca, 0xd9, 0x27, 0x2e } };
+
+/**
  * Name of the Drink control device.
  */
 #define DRINK_DEVICE_NAME L"DrinkMe"
