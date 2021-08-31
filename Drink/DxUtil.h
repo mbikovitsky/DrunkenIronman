@@ -11,6 +11,8 @@
 #include <ntifs.h>
 #include <dispmprt.h>
 
+#include <Common.h>
+
 #include "Util.h"
 
 
