@@ -22,7 +22,7 @@
     <Filter Include="Match">
       <UniqueIdentifier>{f8f8d732-8a56-4b1d-8678-6e10cbaee3b1}</UniqueIdentifier>
     </Filter>
-    <Filter Include="BGMuck">
+    <Filter Include="QRPatch">
       <UniqueIdentifier>{95948e8b-44da-4222-9832-65fc43814f2e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -48,8 +48,8 @@
     <ClCompile Include="Match.c">
       <Filter>Match</Filter>
     </ClCompile>
-    <ClCompile Include="BGMuck.c">
-      <Filter>BGMuck</Filter>
+    <ClCompile Include="QRPatch.c">
+      <Filter>QRPatch</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -71,8 +71,8 @@
     <ClInclude Include="Match.h">
       <Filter>Match</Filter>
     </ClInclude>
-    <ClInclude Include="BGMuck.h">
-      <Filter>BGMuck</Filter>
+    <ClInclude Include="QRPatch.h">
+      <Filter>QRPatch</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

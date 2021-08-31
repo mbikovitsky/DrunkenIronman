@@ -1,26 +1,30 @@
 /**
- * @file BGMuck.c
+ * @file QRPatch.c
  * @author biko
  * @date 2021-08-20
  *
- * Mucking around with the bugcheck drawing machinery - implementation.
+ * Patching of the QR bugcheck image on Windows 10 - implementation.
  */
 
 /** Headers *************************************************************/
 #include <ntifs.h>
-#include <ntintsafe.h>
 
 #include <Common.h>
-#include <Drink.h>
 
 #include "Util.h"
 #include "Match.h"
 #include "ImageParse.h"
 
-#include "BGMuck.h"
+#include "QRPatch.h"
 
 
 /** Typedefs ************************************************************/
+
+typedef
+PVOID
+NTAPI
+FN_BG_GET_DISPLAY_CONTEXT(VOID);
+typedef FN_BG_GET_DISPLAY_CONTEXT *PFN_BG_GET_DISPLAY_CONTEXT;
 
 typedef struct _RECTANGLE
 {
@@ -34,56 +38,13 @@ typedef struct _RECTANGLE
 } RECTANGLE, *PRECTANGLE;
 typedef RECTANGLE CONST *PCRECTANGLE;
 
-typedef struct _DXG_RECTANGLE
-{
-	ULONG	nHeight;
-	ULONG	nWidth;
-	ULONG	nBitCount;
-	ULONG	cbPixels;
-	PVOID	pvPixels;
-} DXG_RECTANGLE, *PDXG_RECTANGLE;
-typedef DXG_RECTANGLE CONST *PCDXG_RECTANGLE;
-
-typedef struct _DXG_POSITION
-{
-	ULONG	nPositionX;
-	ULONG	nPositionY;
-} DXG_POSITION, *PDXG_POSITION;
-typedef DXG_POSITION CONST *PCDXG_POSITION;
-
-typedef
-PVOID
-NTAPI
-FN_BG_GET_DISPLAY_CONTEXT(VOID);
-typedef FN_BG_GET_DISPLAY_CONTEXT *PFN_BG_GET_DISPLAY_CONTEXT;
-
-typedef
-PVOID
-NTAPI
-FN_DPI_SYSTEM_DISPLAY_WRITE(
-	_In_	PDXG_RECTANGLE	ptRectangle,
-	_In_	PDXG_POSITION	ptPosition,
-	_In_	UCHAR			cReserved
-);
-typedef FN_DPI_SYSTEM_DISPLAY_WRITE *PFN_DPI_SYSTEM_DISPLAY_WRITE;
-
 
 /** Constants ***********************************************************/
-
-#define BGMUCK_POOL_TAG ('kcuM')
 
 #ifdef _M_X64
 #define QR_RECTANGLE_POINTER_OFFSET (0xF8)
 #elif _M_IX86
 #define QR_RECTANGLE_POINTER_OFFSET (0xD0)
-#else
-#error Unsupported architecture
-#endif
-
-#ifdef _M_X64
-#define DPI_SYSTEM_DISPLAY_WRITE_POINTER_OFFSET (0x20)
-#elif _M_IX86
-#define DPI_SYSTEM_DISPLAY_WRITE_POINTER_OFFSET (0x18)
 #else
 #error Unsupported architecture
 #endif
@@ -117,35 +78,30 @@ STATIC PATTERN_ELEMENT CONST g_atGetDisplayContextPattern[] = {
 
 STATIC PRECTANGLE g_ptQrRectangle = NULL;
 
-STATIC PFN_DPI_SYSTEM_DISPLAY_WRITE * g_ppfnDpiSystemDisplayWrite = NULL;
-
-STATIC PFRAMEBUFFER_DUMP g_ptShadowFramebuffer = NULL;
-
 
 /** Functions ***********************************************************/
 
 _Use_decl_annotations_
 PAGEABLE
 NTSTATUS
-BGMUCK_Initialize(VOID)
+QRPATCH_Initialize(VOID)
 {
-	NTSTATUS						eStatus						= STATUS_UNSUCCESSFUL;
-	PAUX_MODULE_EXTENDED_INFO		ptModules					= NULL;
-	ULONG							nModules					= 0;
-	STRING							sCodeSectionName			= RTL_CONSTANT_STRING("PAGEBGFX");
-	PVOID							pvCodeSection				= NULL;
-	ULONG							cbCodeSection				= 0;
+	NTSTATUS					eStatus					= STATUS_UNSUCCESSFUL;
+	PAUX_MODULE_EXTENDED_INFO	ptModules				= NULL;
+	ULONG						nModules				= 0;
+	STRING						sCodeSectionName		= RTL_CONSTANT_STRING("PAGEBGFX");
+	PVOID						pvCodeSection			= NULL;
+	ULONG						cbCodeSection			= 0;
 #ifdef _M_IX86
-	STRING							sDataSectionName			= RTL_CONSTANT_STRING(".data");
-	PVOID							pvDataSection				= NULL;
-	ULONG							cbDataSection				= 0;
+	STRING						sDataSectionName		= RTL_CONSTANT_STRING(".data");
+	PVOID						pvDataSection			= NULL;
+	ULONG						cbDataSection			= 0;
 #endif
-	PUCHAR							pcCurrent					= NULL;
-	BOOLEAN							bMatch						= FALSE;
-	PFN_BG_GET_DISPLAY_CONTEXT		pfnBgGetDisplayContext		= NULL;
-	PVOID							pvDisplayContext			= NULL;
-	PRECTANGLE						ptRectangle					= NULL;
-	PFN_DPI_SYSTEM_DISPLAY_WRITE *	ppfnDpiSystemDisplayWrite	= NULL;
+	PUCHAR						pcCurrent				= NULL;
+	BOOLEAN						bMatch					= FALSE;
+	PFN_BG_GET_DISPLAY_CONTEXT	pfnBgGetDisplayContext	= NULL;
+	PVOID						pvDisplayContext		= NULL;
+	PRECTANGLE					ptRectangle				= NULL;
 
 	PAGED_CODE();
 	NT_ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
@@ -242,15 +198,7 @@ BGMUCK_Initialize(VOID)
 		goto lblCleanup;
 	}
 
-	ppfnDpiSystemDisplayWrite = (PFN_DPI_SYSTEM_DISPLAY_WRITE *)(ULONG_PTR)RtlOffsetToPointer(pvDisplayContext, DPI_SYSTEM_DISPLAY_WRITE_POINTER_OFFSET);
-	if (NULL == *ppfnDpiSystemDisplayWrite)
-	{
-		eStatus = STATUS_NOT_FOUND;
-		goto lblCleanup;
-	}
-
 	g_ptQrRectangle = ptRectangle;
-	g_ppfnDpiSystemDisplayWrite = ppfnDpiSystemDisplayWrite;
 
 	eStatus = STATUS_SUCCESS;
 
@@ -262,7 +210,7 @@ lblCleanup:
 
 _Use_decl_annotations_
 NTSTATUS
-BGMUCK_GetBitmapInfo(
+QRPATCH_GetBitmapInfo(
 	PBITMAP_INFO	ptBitmapInfo
 )
 {
@@ -292,7 +240,7 @@ lblCleanup:
 
 _Use_decl_annotations_
 NTSTATUS
-BGMUCK_SetBitmap(
+QRPATCH_SetBitmap(
 	PVOID	pvPixels,
 	ULONG	cbPixels
 )
@@ -323,77 +271,4 @@ BGMUCK_SetBitmap(
 
 lblCleanup:
 	return eStatus;
-}
-
-_Use_decl_annotations_
-NTSTATUS
-BGMUCK_AllocateShadowFramebuffer(
-	ULONG	nWidth,
-	ULONG	nHeight
-)
-{
-	NTSTATUS			eStatus				= STATUS_UNSUCCESSFUL;
-	SIZE_T				cbSize				= 0;
-	PFRAMEBUFFER_DUMP	ptFramebuffer		= NULL;
-	PVOID				pvOldFramebuffer	= NULL;
-
-	eStatus = RtlSIZETMult(nWidth, nHeight, &cbSize);
-	if (!NT_SUCCESS(eStatus))
-	{
-		goto lblCleanup;
-	}
-
-	// Allocate 4 bytes per pixel, to accomodate the largest BPP value
-	eStatus = RtlSIZETMult(cbSize, 4, &cbSize);
-	if (!NT_SUCCESS(eStatus))
-	{
-		goto lblCleanup;
-	}
-
-	// Add the header
-	eStatus = RtlSIZETAdd(cbSize, FIELD_OFFSET(FRAMEBUFFER_DUMP, acPixels), &cbSize);
-	if (!NT_SUCCESS(eStatus))
-	{
-		goto lblCleanup;
-	}
-
-	// Buffer has to be page-aligned, due to bugcheck callback requirements
-	if (cbSize < PAGE_SIZE)
-	{
-		cbSize = PAGE_SIZE;
-	}
-
-	ptFramebuffer = ExAllocatePoolWithTag(NonPagedPoolNx, cbSize, BGMUCK_POOL_TAG);
-	if (NULL == ptFramebuffer)
-	{
-		eStatus = STATUS_INSUFFICIENT_RESOURCES;
-		goto lblCleanup;
-	}
-	RtlZeroMemory(ptFramebuffer, cbSize);
-
-	ptFramebuffer->nWidth = nWidth;
-	ptFramebuffer->nHeight = nHeight;
-	ptFramebuffer->nBitCount = 0;
-
-	// Transfer ownership:
-	pvOldFramebuffer = InterlockedExchangePointer(&g_ptShadowFramebuffer, ptFramebuffer);
-	ptFramebuffer = NULL;
-
-	eStatus = STATUS_SUCCESS;
-
-lblCleanup:
-	CLOSE(pvOldFramebuffer, ExFreePool);
-	CLOSE(ptFramebuffer, ExFreePool);
-
-	return eStatus;
-}
-
-_Use_decl_annotations_
-VOID
-BGMUCK_FreeShadowFramebuffer(VOID)
-{
-	PVOID	pvOldFramebuffer	= NULL;
-
-	pvOldFramebuffer = InterlockedExchangePointer(&g_ptShadowFramebuffer, NULL);
-	CLOSE(pvOldFramebuffer, ExFreePool);
 }

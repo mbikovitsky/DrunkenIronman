@@ -15,7 +15,7 @@
 #include "Util.h"
 #include "VgaDump.h"
 #include "Carpenter.h"
-#include "BGMuck.h"
+#include "QRPatch.h"
 
 
 /** Macros **************************************************************/
@@ -429,7 +429,7 @@ driver_HandleQrInfo(
 		goto lblCleanup;
 	}
 
-	eStatus = BGMUCK_GetBitmapInfo(&tBitmapInfo);
+	eStatus = QRPATCH_GetBitmapInfo(&tBitmapInfo);
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
@@ -480,7 +480,7 @@ driver_HandleQrSet(
 		goto lblCleanup;
 	}
 
-	eStatus = BGMUCK_SetBitmap(pvInputBuffer, cbInputBuffer);
+	eStatus = QRPATCH_SetBitmap(pvInputBuffer, cbInputBuffer);
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
@@ -600,7 +600,7 @@ DriverEntry(
 
 	if (UTIL_IsWindows10OrGreater())
 	{
-		eStatus = BGMUCK_Initialize();
+		eStatus = QRPATCH_Initialize();
 		if (!NT_SUCCESS(eStatus))
 		{
 			goto lblCleanup;
