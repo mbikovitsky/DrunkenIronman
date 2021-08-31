@@ -199,6 +199,15 @@ UTIL_QueryModuleInformation(
 	_Out_								PULONG						pnModules
 );
 
+/**
+ * @brief Convenience wrapper around ZwQuerySystemInformation.
+ *
+ * @param eInfoClass		Information class.
+ * @param ppvInformation	Will receive the information buffer.
+ * @param pcbInformation	Will receive the size of the buffer, in bytes.
+ *
+ * @return NTSTATUS
+*/
 _IRQL_requires_(PASSIVE_LEVEL)
 PAGEABLE
 NTSTATUS
