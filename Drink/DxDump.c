@@ -77,6 +77,11 @@ STATIC BOOLEAN g_bCallbackRegistered = FALSE;
 
 /** Functions ***********************************************************/
 
+/**
+ * @brief Hook for the function that draws the bugcheck screen.
+ *
+ * @see https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/dispmprt/nc-dispmprt-dxgkddi_system_display_write
+*/
 STATIC
 VOID
 dxdump_SystemDisplayWriteHook(
@@ -175,6 +180,16 @@ STATIC PDXGKDDI_SYSTEM_DISPLAY_WRITE CONST g_apfnTrampolines[] = {
 
 C_ASSERT(ARRAYSIZE(g_apfnTrampolines) == ARRAYSIZE(g_atHookContexts));
 
+/**
+ * Bugcheck callback for dumping the framebuffer memory.
+ *
+ * @param[in]		eReason					Specifies the situation in which the callback is executed.
+ *											Always KbCallbackSecondaryDumpData.
+ * @param[in]		ptRecord				Pointer to the registration record for this callback.
+ * @param[in,out]	pvReasonSpecificData	Pointer to a KBUGCHECK_SECONDARY_DUMP_DATA structure.
+ * @param[in]		cbReasonSpecificData	Size of the buffer pointer to by pvReasonSpecificData.
+ *											Always sizeof(KBUGCHECK_SECONDARY_DUMP_DATA).
+ */
 STATIC
 VOID
 dxdump_BugCheckSecondaryDumpDataCallback(
@@ -228,6 +243,17 @@ lblCleanup:
 	return;
 }
 
+/**
+ * @brief Allocates a framebuffer to be used when saving a screenshot.
+ *
+ * @param[in]	nMaxWidth			Width of the framebuffer, in pixels.
+ * @param[in]	nMaxHeight		Height of the framebuffer, in pixels.
+ * @param[out]	pptFramebuffer	Will receive the allocated framebuffer.
+ *
+ * @return NTSTATUS
+ *
+ * @remark The framebuffer is allocated from non-paged pool.
+*/
 _IRQL_requires_max_(DISPATCH_LEVEL)
 STATIC
 NTSTATUS
