@@ -14,6 +14,7 @@
 #include <Drink.h>
 
 #include "DxUtil.h"
+#include "VgaDump.h"
 
 #include "DxDump.h"
 
@@ -97,7 +98,7 @@ dxdump_SystemDisplayWriteHook(
 
 	NT_ASSERT(NULL != pfnOriginal);
 
-	if (NULL == g_ptShadowFramebuffer)
+	if (NULL == g_ptShadowFramebuffer || !g_ptShadowFramebuffer->bValid)
 	{
 		goto lblCleanup;
 	}
@@ -110,6 +111,25 @@ dxdump_SystemDisplayWriteHook(
 
 	// The source is always 32 BPP
 	cbToCopy = SourceWidth * 4;
+
+	// But sometimes it isn't, like when the output is actually to VGA.
+	if (SourceStride < cbToCopy)
+	{
+		// NOTE: The assumption here is that the MSDN is correct and the source image is
+		// always 32 BPP. The only exception I know of is when the output is to VGA using
+		// BasicDisplay.sys, then the source is actually 4 BPP. The source stride seems to be
+		// a good indicator for this case, since in the case of 32 BPP the stride must be at
+		// least cbToCopy. But I may be wrong.
+
+		// Don't touch the framebuffer no more.
+		g_ptShadowFramebuffer->bValid = FALSE;
+
+		// Hand off to VGA dump module.
+		(VOID)VGADUMP_Enable();
+
+		// Time to leave.
+		goto lblCleanup;
+	}
 
 	// TODO: Truncate image and don't overflow
 
@@ -169,7 +189,7 @@ dxdump_BugCheckSecondaryDumpDataCallback(
 	NT_ASSERT(NULL != pvReasonSpecificData);
 	NT_ASSERT(sizeof(*ptSecondaryDumpData) == cbReasonSpecificData);
 
-	if (NULL == g_ptShadowFramebuffer)
+	if (NULL == g_ptShadowFramebuffer || !g_ptShadowFramebuffer->bValid)
 	{
 		ptSecondaryDumpData->OutBuffer = NULL;
 		ptSecondaryDumpData->OutBufferLength = 0;
@@ -250,6 +270,7 @@ dxdump_AllocateFramebuffer(
 	RtlZeroMemory(ptFramebuffer, cbSize);
 	ptFramebuffer->nWidth = nMaxWidth;
 	ptFramebuffer->nHeight = nMaxHeight;
+	ptFramebuffer->bValid = TRUE;
 
 	// Transfer ownership:
 	*pptFramebuffer = ptFramebuffer;

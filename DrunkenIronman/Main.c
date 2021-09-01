@@ -243,8 +243,12 @@ main_FramebufferDumpToBitmap(
 	HRESULT				hrResult		= E_FAIL;
 	PFRAMEBUFFER_BITMAP	ptBitmap		= NULL;
 
+	// Invalid dumps will never be written by the kernel.
+	assert(ptDump->bValid);
+
 	PROGRESS("Converting raw VGA dump to BMP...");
 
+	// Should be safe since the kernel already performed the same calculation.
 	ptBitmap = HEAPALLOC(FIELD_OFFSET(FRAMEBUFFER_BITMAP, acPixels[ptDump->nWidth * ptDump->nHeight * 4]));
 	if (NULL == ptBitmap)
 	{
