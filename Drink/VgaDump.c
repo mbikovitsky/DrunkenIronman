@@ -57,6 +57,8 @@
 
 /** Globals *************************************************************/
 
+STATIC LONG g_bEnabled = FALSE;
+
 /**
  * Mapped VGA video memory base address.
  */
@@ -332,6 +334,13 @@ vgadump_BugCheckSecondaryDumpDataCallback(
 	ASSERT(NULL != pvReasonSpecificData);
 	ASSERT(sizeof(*ptSecondaryDumpData) == cbReasonSpecificData);
 
+	if (!VGADUMP_IsEnabled())
+	{
+		ptSecondaryDumpData->OutBuffer = NULL;
+		ptSecondaryDumpData->OutBufferLength = 0;
+		goto lblCleanup;
+	}
+
 	// Enforce correct behaviour of vgadump_EnableInterrupts
 	// and vgadump_DisableInterrupts. If interrupts are currently
 	// disabled, set the counter to 1, so that we don't erroneously
@@ -379,6 +388,8 @@ VGADUMP_Initialize(VOID)
 	PHYSICAL_ADDRESS	pvVgaPhysicalBase	= { 0 };
 
 	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
+
+	(VOID)VGADUMP_Enable();
 
 	// Map the VGA video memory so that we'll be able
 	// to access it in protected mode.
@@ -432,6 +443,26 @@ VGADUMP_Shutdown(VOID)
 		g_pvVgaBase = NULL;
 	}
 
+	(VOID)VGADUMP_Disable();
+
 //lblCleanup:
 	return;
+}
+
+BOOLEAN
+VGADUMP_Enable(VOID)
+{
+	return !!InterlockedExchange(&g_bEnabled, TRUE);
+}
+
+BOOLEAN
+VGADUMP_Disable(VOID)
+{
+	return !!InterlockedExchange(&g_bEnabled, FALSE);
+}
+
+BOOLEAN
+VGADUMP_IsEnabled(VOID)
+{
+	return !!InterlockedCompareExchange(&g_bEnabled, TRUE, TRUE);
 }
