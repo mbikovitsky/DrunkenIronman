@@ -31,7 +31,7 @@ DrunkenIronman.exe <subfunction> <subfunction args>
   unload
     Unloads the driver.
 
-  bugshot
+  bugshot [<width> <height>]
     Instructs the driver to capture a screenshot
     of the next BSoD.
 

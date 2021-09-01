@@ -104,7 +104,7 @@ main_PrintUsage(VOID)
 				   L"  unload\n    Unloads the driver.\n");
 
 	(VOID)fwprintf(stderr,
-				   L"  bugshot\n    Instructs the driver to capture a screenshot\n    of the next BSoD.\n");
+				   L"  bugshot [<width> <height>]\n    Instructs the driver to capture a screenshot\n    of the next BSoD.\n");
 
 	(VOID)fwprintf(stderr,
 				   L"  vanity <string>\n    Crashes the system and displays the specified string\n    on the BSoD.\n");
