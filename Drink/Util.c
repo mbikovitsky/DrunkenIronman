@@ -10,6 +10,7 @@
 #include <ntifs.h>
 #include <ntintsafe.h>
 #include <ntstrsafe.h>
+#include <aux_klib.h>
 
 #include <Common.h>
 
@@ -24,46 +25,40 @@
 #define UTIL_POOL_TAG (RtlUlongByteSwap('Util'))
 
 /**
- * Number of iterations to use when querying for system information.
+ * Number of iterations to use when querying for information.
  */
-#define QUERY_SYSTEM_INFO_ITERATIONS (10)
+#define QUERY_INFO_ITERATIONS (10)
 
 
 /** Forward Declarations ************************************************/
 
-/**
- * Retrieves the list of loaded kernel modules.
- *
- * @param[in,out]	pcbBuffer	On input, contains the size of
- *								the buffer at pvQueryInfo.
- *								On output, contains the required
- *								buffer size.
- * @param[in]		cbElement	Size of the element to retrieve.
- *								Can be either sizeof(AUX_MODULE_BASIC_INFO)
- *								or sizeof(AUX_MODULE_EXTENDED_INFO).
- * @param[out]		pcbBuffer	Buffer to receive the list.
- *
- * @returns NTSTATUS
- *
- * @remark Call AuxKlibInitialize before invoking this routine.
- * @remark Adapted from aux_klib.h.
- */
 _IRQL_requires_(PASSIVE_LEVEL)
-NTSTATUS
-NTAPI
-AuxKlibQueryModuleInformation(
-	_Inout_								PULONG	pcbBuffer,
-	_In_								ULONG	cbElement,
-	_Out_writes_bytes_opt_(*pcbBuffer)	PVOID	pvQueryInfo
-);
-
-_IRQL_requires_(PASSIVE_LEVEL)
+NTSYSAPI
 NTSTATUS 
 ZwQuerySystemInformation (
     _In_															SYSTEM_INFORMATION_CLASS	SystemInformationClass, 
     _Out_writes_bytes_to_(SystemInformationLength, *ReturnLength)	PVOID						SystemInformation, 
     _In_															ULONG						SystemInformationLength, 
     _Out_opt_														PULONG						ReturnLength
+);
+
+/**
+ * @brief Returns the contents of an object directory.
+ *
+ * @see https://docs.microsoft.com/en-us/windows/win32/devnotes/ntquerydirectoryobject
+*/
+_IRQL_requires_(PASSIVE_LEVEL)
+NTSTATUS
+NTSYSAPI
+NTAPI
+ZwQueryDirectoryObject(
+	_In_		HANDLE	DirectoryHandle,
+	_Out_opt_	PVOID	Buffer,
+	_In_		ULONG	Length,
+	_In_		BOOLEAN	ReturnSingleEntry,
+	_In_		BOOLEAN	RestartScan,
+	_Inout_		PULONG	Context,
+	_Out_opt_	PULONG	ReturnLength
 );
 
 
@@ -397,7 +392,7 @@ UTIL_QueryModuleInformation(
 		 ptCurrentModule < (PAUX_MODULE_EXTENDED_INFO)RtlOffsetToPointer(ptModules, cbModules);
 		 ++ptCurrentModule)
 	{
-		if (NULL == ptCurrentModule->tBasicInfo.pvImageBase)
+		if (NULL == ptCurrentModule->BasicInfo.ImageBase)
 		{
 			break;
 		}
@@ -444,7 +439,7 @@ UTIL_QuerySystemInformation(
 
 	cbInformation = PAGE_SIZE;
 
-	for (nIteration = 0; nIteration < QUERY_SYSTEM_INFO_ITERATIONS; ++nIteration)
+	for (nIteration = 0; nIteration < QUERY_INFO_ITERATIONS; ++nIteration)
 	{
 		// Allocate a buffer.
 		pvInformation = ExAllocatePoolWithTag(PagedPool, cbInformation, UTIL_POOL_TAG);
@@ -480,6 +475,72 @@ UTIL_QuerySystemInformation(
 	{
 		*pcbInformation = cbReturned;
 	}
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	CLOSE(pvInformation, ExFreePool);
+
+	return eStatus;
+}
+
+_Use_decl_annotations_
+PAGEABLE
+NTSTATUS
+UTIL_GetObjectDirectoryContents(
+	HANDLE							hDirectory,
+	POBJECT_DIRECTORY_INFORMATION *	pptObjectInfos
+)
+{
+	NTSTATUS	eStatus			= STATUS_UNSUCCESSFUL;
+	PVOID		pvInformation	= NULL;
+	ULONG		cbInformation	= 0;
+	ULONG		nIteration		= 0;
+	ULONG		cbReturned		= 0;
+	ULONG		nContext		= 0;
+
+	PAGED_CODE();
+	NT_ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
+
+	if (NULL == hDirectory || NULL == pptObjectInfos)
+	{
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
+	}
+
+	cbInformation = PAGE_SIZE;
+
+	for (nIteration = 0; nIteration < QUERY_INFO_ITERATIONS; ++nIteration)
+	{
+		// Allocate a buffer.
+		pvInformation = ExAllocatePoolWithTag(PagedPool, cbInformation, UTIL_POOL_TAG);
+		if (NULL == pvInformation)
+		{
+			eStatus = STATUS_INSUFFICIENT_RESOURCES;
+			goto lblCleanup;
+		}
+
+		// Try to obtain the information.
+		eStatus = ZwQueryDirectoryObject(hDirectory, pvInformation, cbInformation, FALSE, TRUE, &nContext, &cbReturned);
+		if (NT_SUCCESS(eStatus) && STATUS_MORE_ENTRIES != eStatus)
+		{
+			break;
+		}
+
+		// Free the buffer.
+		CLOSE(pvInformation, ExFreePool);
+
+		// Try again with double the size.
+		cbInformation *= 2;
+	}
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+
+	// Transfer ownership:
+	*pptObjectInfos = pvInformation;
+	pvInformation = NULL;
 
 	eStatus = STATUS_SUCCESS;
 

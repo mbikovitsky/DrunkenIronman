@@ -25,6 +25,12 @@
     <Filter Include="QRPatch">
       <UniqueIdentifier>{95948e8b-44da-4222-9832-65fc43814f2e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DxUtil">
+      <UniqueIdentifier>{3e26ea4e-8419-48b0-9ed3-6eeec48c24ba}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DxDump">
+      <UniqueIdentifier>{e28135c2-fe63-4a6a-b90b-9e4d4c73145f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Driver.c">
@@ -51,6 +57,12 @@
     <ClCompile Include="QRPatch.c">
       <Filter>QRPatch</Filter>
     </ClCompile>
+    <ClCompile Include="DxUtil.c">
+      <Filter>DxUtil</Filter>
+    </ClCompile>
+    <ClCompile Include="DxDump.c">
+      <Filter>DxDump</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="VgaDump.h">
@@ -73,6 +85,12 @@
     </ClInclude>
     <ClInclude Include="QRPatch.h">
       <Filter>QRPatch</Filter>
+    </ClInclude>
+    <ClInclude Include="DxUtil.h">
+      <Filter>DxUtil</Filter>
+    </ClInclude>
+    <ClInclude Include="DxDump.h">
+      <Filter>DxDump</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

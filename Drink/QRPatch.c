@@ -118,14 +118,14 @@ QRPATCH_Initialize(VOID)
 		goto lblCleanup;
 	}
 
-	eStatus = IMAGEPARSE_GetSection(ptModules[0].tBasicInfo.pvImageBase, &sCodeSectionName, &pvCodeSection, &cbCodeSection);
+	eStatus = IMAGEPARSE_GetSection(ptModules[0].BasicInfo.ImageBase, &sCodeSectionName, &pvCodeSection, &cbCodeSection);
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;
 	}
 
 #ifdef _M_IX86
-	eStatus = IMAGEPARSE_GetSection(ptModules[0].tBasicInfo.pvImageBase, &sDataSectionName, &pvDataSection, &cbDataSection);
+	eStatus = IMAGEPARSE_GetSection(ptModules[0].BasicInfo.ImageBase, &sDataSectionName, &pvDataSection, &cbDataSection);
 	if (!NT_SUCCESS(eStatus))
 	{
 		goto lblCleanup;

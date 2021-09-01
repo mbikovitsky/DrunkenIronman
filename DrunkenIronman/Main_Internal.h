@@ -65,6 +65,22 @@ typedef enum _SUBFUNCTION_CONVERT_ARGS
 } SUBFUNCTION_CONVERT_ARGS, *PSUBFUNCTION_CONVERT_ARGS;
 
 /**
+ * Command line argument positions for the "bugshot" subfunction.
+ */
+typedef enum _SUBFUNCTION_BUGSHOT_ARGS
+{
+	// Maximum width of the captured screenshot.
+	SUBFUNCTION_BUGSHOT_ARG_WIDTH = 0,
+
+	// Maximum height of the captured screenshot.
+	SUBFUNCTION_BUGSHOT_ARG_HEIGHT,
+
+	// Must be last:
+	SUBFUNCTION_BUGSHOT_ARGS_COUNT
+} SUBFUNCTION_BUGSHOT_ARGS, *PSUBFUNCTION_BUGSHOT_ARGS;
+typedef SUBFUNCTION_BUGSHOT_ARGS CONST *PCSUBFUNCTION_BUGSHOT_ARGS;
+
+/**
  * Command line argument positions for the "vanity" subfunction.
  */
 typedef enum _SUBFUNCTION_VANITY_ARGS
@@ -132,6 +148,19 @@ typedef struct _VGA_BITMAP
 	BYTE				anPixels[SCREEN_WIDTH_PIXELS * SCREEN_HEIGHT_PIXELS];
 } VGA_BITMAP, *PVGA_BITMAP;
 typedef CONST VGA_BITMAP *PCVGA_BITMAP;
+#pragma pack(pop)
+
+/**
+ * Structure of the finished BMP on disk.
+ */
+#pragma pack(push, 1)
+typedef struct _FRAMEBUFFER_BITMAP
+{
+	BITMAPFILEHEADER	tFileHeader;
+	BITMAPINFOHEADER	tInfoHeader;
+	BYTE				acPixels[ANYSIZE_ARRAY];
+} FRAMEBUFFER_BITMAP, *PFRAMEBUFFER_BITMAP;
+typedef FRAMEBUFFER_BITMAP CONST *PCFRAMEBUFFER_BITMAP;
 #pragma pack(pop)
 
 

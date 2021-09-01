@@ -9,6 +9,8 @@
 /** Headers *************************************************************/
 #include <ntifs.h>
 
+#include <aux_klib.h>
+
 #include <Common.h>
 #include <Drink.h>
 
@@ -16,6 +18,7 @@
 #include "VgaDump.h"
 #include "Carpenter.h"
 #include "QRPatch.h"
+#include "DxDump.h"
 
 
 /** Macros **************************************************************/
@@ -56,34 +59,26 @@ STATIC CONST UNICODE_STRING g_usControlDeviceSymlink =
 	RTL_CONSTANT_STRING(L"\\DosDevices\\Global\\" DRINK_DEVICE_NAME);
 
 /**
- * Synchronizes access to the VGA dump module.
- */
-STATIC KSPIN_LOCK g_tVgaDumpLock = { 0 };
+ * @brief Synchronizes access to the screen dump modules.
+*/
+STATIC KMUTEX g_tDumpLock = { 0 };
 
 /**
  * Indicates whether VGA dumping has been initialized.
  */
-_Guarded_by_(g_tVgaDumpLock)
+_Guarded_by_(g_tDumpLock)
 STATIC BOOLEAN g_bVgaDumpInitialized = FALSE;
+
+/**
+ * Indicates whether framebuffer dumping has been initialized.
+ */
+_Guarded_by_(g_tDumpLock)
+STATIC BOOLEAN g_bFramebufferDumpInitialized = FALSE;
 
 /**
  * Synchronizes access to the IOCTL_DRINK_VANITY handler.
  */
 STATIC KMUTEX g_tVanityLock = { 0 };
-
-
-/** Forward Declarations ************************************************/
-
-/**
- * Initializes the Auxiliary Kernel-Mode Library.
- *
- * @returns NTSTATUS
- *
- * @remark Adapted from aux_klib.h.
- */
-NTSTATUS
-NTAPI
-AuxKlibInitialize(VOID);
 
 
 /** Functions ***********************************************************/
@@ -105,6 +100,12 @@ driver_Unload(
 
 	ASSERT(NULL != ptDriverObject);
 	ASSERT(PASSIVE_LEVEL == KeGetCurrentIrql());
+
+	if (g_bFramebufferDumpInitialized)
+	{
+		DXDUMP_Shutdown();
+		g_bFramebufferDumpInitialized = FALSE;
+	}
 
 	if (g_bVgaDumpInitialized)
 	{
@@ -188,35 +189,99 @@ driver_DispatchCreateClose(
 /**
  * Handles IOCTL_DRINK_BUGSHOT.
  *
+ * @param[in]	pvInputBuffer	The IOCTLs input buffer.
+ * @param[in]	cbInputBuffer	Size of the input buffer, in bytes.
+ *
  * @returns NTSTATUS
  */
-_IRQL_requires_max_(DISPATCH_LEVEL)
+_IRQL_requires_(PASSIVE_LEVEL)
 STATIC
 NTSTATUS
-driver_HandleBugshot(VOID)
+driver_HandleBugshot(
+	_In_	PVOID	pvInputBuffer,
+	_In_	ULONG	cbInputBuffer
+)
 {
-	NTSTATUS	eStatus		= STATUS_UNSUCCESSFUL;
-	KIRQL		eOldIrql	= HIGH_LEVEL;
+	NTSTATUS	eStatus			= STATUS_UNSUCCESSFUL;
+	PRESOLUTION	ptResolution	= pvInputBuffer;
+	BOOLEAN		bLockAcquired	= FALSE;
+	BOOLEAN		bShutdownVga	= FALSE;
+	BOOLEAN		bShutdownFb		= FALSE;
 
 	ASSERT(DISPATCH_LEVEL >= KeGetCurrentIrql());
 
-	KeAcquireSpinLock(&g_tVgaDumpLock, &eOldIrql);
+	// We can't actually run above PASSIVE_LEVEL.
+	if ((NULL == pvInputBuffer) ||
+		(cbInputBuffer != sizeof(*ptResolution)) ||
+		(PASSIVE_LEVEL != KeGetCurrentIrql()))
 	{
-		if (!g_bVgaDumpInitialized)
-		{
-			eStatus = VGADUMP_Initialize();
-			g_bVgaDumpInitialized = NT_SUCCESS(eStatus);
-		}
-		else
-		{
-			eStatus = STATUS_ALREADY_COMMITTED;
-		}
+		eStatus = STATUS_INVALID_PARAMETER;
+		goto lblCleanup;
 	}
-	KeReleaseSpinLock(&g_tVgaDumpLock, eOldIrql);
 
-	// Keep last status
+	eStatus = KeWaitForSingleObject(&g_tDumpLock,
+									Executive,
+									KernelMode,
+									FALSE,
+									NULL);
+	if (STATUS_SUCCESS != eStatus)
+	{
+		// Really shouldn't happen.
+		KeBugCheck(eStatus);
+	}
+	bLockAcquired = TRUE;
 
-//lblCleanup:
+	if (g_bVgaDumpInitialized || g_bFramebufferDumpInitialized)
+	{
+		eStatus = STATUS_ALREADY_COMMITTED;
+		goto lblCleanup;
+	}
+
+	eStatus = VGADUMP_Initialize();
+	if (!NT_SUCCESS(eStatus))
+	{
+		goto lblCleanup;
+	}
+	bShutdownVga = TRUE;
+	g_bVgaDumpInitialized = TRUE;
+
+	if (UTIL_IsWindows10OrGreater())
+	{
+		eStatus = DXDUMP_Initialize(ptResolution->nWidth, ptResolution->nHeight);
+		if (!NT_SUCCESS(eStatus))
+		{
+			goto lblCleanup;
+		}
+		VGADUMP_Disable();
+		bShutdownFb = TRUE;
+		g_bFramebufferDumpInitialized = TRUE;
+	}
+
+	// Transfer ownership:
+	bShutdownVga = FALSE;
+	bShutdownFb = FALSE;
+
+	eStatus = STATUS_SUCCESS;
+
+lblCleanup:
+	if (bShutdownFb)
+	{
+		DXDUMP_Shutdown();
+		bShutdownFb = FALSE;
+		g_bFramebufferDumpInitialized = FALSE;
+	}
+	if (bShutdownVga)
+	{
+		VGADUMP_Shutdown();
+		bShutdownVga = FALSE;
+		g_bVgaDumpInitialized = FALSE;
+	}
+	if (bLockAcquired)
+	{
+		(VOID)KeReleaseMutex(&g_tDumpLock, FALSE);
+		bLockAcquired = FALSE;
+	}
+
 	return eStatus;
 }
 
@@ -332,7 +397,7 @@ driver_HandleVanity(
 		}
 
 		// Prepare to patch the message table of ntoskrnl.exe.
-		eStatus = CARPENTER_Create(ptModules[0].tBasicInfo.pvImageBase,
+		eStatus = CARPENTER_Create(ptModules[0].BasicInfo.ImageBase,
 								   RT_MESSAGETABLE,
 								   1,
 								   MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
@@ -526,7 +591,8 @@ driver_DispatchDeviceControl(
 	switch (ptStackLocation->Parameters.DeviceIoControl.IoControlCode)
 	{
 	case IOCTL_DRINK_BUGSHOT:
-		eStatus = driver_HandleBugshot();
+		eStatus = driver_HandleBugshot(ptIrp->AssociatedIrp.SystemBuffer,
+									   ptStackLocation->Parameters.DeviceIoControl.InputBufferLength);
 		break;
 
 	case IOCTL_DRINK_VANITY:
@@ -610,7 +676,7 @@ DriverEntry(
 	//
 	// Initialize some locks
 	//
-	KeInitializeSpinLock(&g_tVgaDumpLock);
+	KeInitializeMutex(&g_tDumpLock, 0);
 	KeInitializeMutex(&g_tVanityLock, 0);
 
 	//

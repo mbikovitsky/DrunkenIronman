@@ -15,6 +15,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #include <Drink.h>
 
@@ -103,7 +104,7 @@ main_PrintUsage(VOID)
 				   L"  unload\n    Unloads the driver.\n");
 
 	(VOID)fwprintf(stderr,
-				   L"  bugshot\n    Instructs the driver to capture a screenshot\n    of the next BSoD.\n");
+				   L"  bugshot [<width> <height>]\n    Instructs the driver to capture a screenshot\n    of the next BSoD.\n");
 
 	(VOID)fwprintf(stderr,
 				   L"  vanity <string>\n    Crashes the system and displays the specified string\n    on the BSoD.\n");
@@ -219,6 +220,98 @@ main_VgaDumpToBitmap(
 													nCurrentPixel);
 			ptBitmap->anPixels[nCurrentPixel] |= nCurrentBit << nCurrentPlane;
 		}
+	}
+
+	// Transfer ownership:
+	*pptBitmap = ptBitmap;
+	ptBitmap = NULL;
+
+	hrResult = S_OK;
+
+lblCleanup:
+	HEAPFREE(ptBitmap);
+
+	return hrResult;
+}
+
+STATIC
+HRESULT
+main_FramebufferDumpToBitmap(
+	_In_		PFRAMEBUFFER_DUMP		ptDump,
+	_Outptr_	PFRAMEBUFFER_BITMAP *	pptBitmap
+)
+{
+	HRESULT				hrResult		= E_FAIL;
+	ULONG				nBitmapWidth	= 0;
+	ULONG				nBitmapHeight	= 0;
+	DWORD				cbBitmap		= 0;
+	PFRAMEBUFFER_BITMAP	ptBitmap		= NULL;
+	ULONG				nRow			= 0;
+
+	// Invalid dumps will never be written by the kernel.
+	assert(ptDump->bValid);
+
+	PROGRESS("Converting framebuffer dump to BMP...");
+
+	if (ptDump->nMaxSeenWidth > ptDump->nWidth || ptDump->nMaxSeenHeight > ptDump->nHeight)
+	{
+		PROGRESS("Image truncated. Actual size was %lux%lu, but saved only %lux%lu",
+				 ptDump->nMaxSeenWidth,
+				 ptDump->nMaxSeenHeight,
+				 ptDump->nWidth,
+				 ptDump->nHeight);
+	}
+
+	nBitmapWidth = min(ptDump->nWidth, ptDump->nMaxSeenWidth);
+	if (nBitmapWidth > LONG_MAX)
+	{
+		PROGRESS("Image too wide (%lu pixels)", nBitmapWidth);
+		hrResult = E_DRAW;
+		goto lblCleanup;
+	}
+
+	nBitmapHeight = min(ptDump->nHeight, ptDump->nMaxSeenHeight);
+	if (nBitmapHeight > LONG_MAX)
+	{
+		PROGRESS("Image too tall (%lu pixels)", nBitmapHeight);
+		hrResult = E_DRAW;
+		goto lblCleanup;
+	}
+
+	// Should be safe since the kernel already performed the same calculation.
+	cbBitmap = FIELD_OFFSET(FRAMEBUFFER_BITMAP, acPixels[nBitmapWidth * nBitmapHeight * 4]);
+
+	ptBitmap = HEAPALLOC(cbBitmap);
+	if (NULL == ptBitmap)
+	{
+		PROGRESS("Oops. Ran out of memory.");
+		hrResult = E_OUTOFMEMORY;
+		goto lblCleanup;
+	}
+
+	PROGRESS("Writing the BMP header.");
+
+	// Initialize the file header
+	ptBitmap->tFileHeader.bfType = 'MB';
+	ptBitmap->tFileHeader.bfSize = cbBitmap;
+	ptBitmap->tFileHeader.bfOffBits = FIELD_OFFSET(FRAMEBUFFER_BITMAP, acPixels);
+
+	// Initialize the info header
+	ptBitmap->tInfoHeader.biSize = sizeof(ptBitmap->tInfoHeader);
+	ptBitmap->tInfoHeader.biWidth = (LONG)nBitmapWidth;
+	ptBitmap->tInfoHeader.biHeight = -(LONG)nBitmapHeight;	// Negative because otherwise the bitmap
+															// is bottom-up :)
+	ptBitmap->tInfoHeader.biPlanes = 1;
+	ptBitmap->tInfoHeader.biBitCount = 32;
+	ptBitmap->tInfoHeader.biCompression = BI_RGB;
+
+	// Set the pixel values
+	PROGRESS("Writing the pixel data.");
+	for (nRow = 0; nRow < nBitmapHeight; ++nRow)
+	{
+		MoveMemory(&ptBitmap->acPixels[nRow * nBitmapWidth * 4],
+				   &ptDump->acPixels[nRow * ptDump->nWidth * 4],
+				   nBitmapWidth * 4);
 	}
 
 	// Transfer ownership:
@@ -485,15 +578,20 @@ main_HandleConvert(
 	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
 )
 {
-	HRESULT		hrResult		= E_FAIL;
-	PCWSTR		pwszDumpPath	= NULL;
-	PCWSTR		pwszOutputPath	= NULL;
-	HDUMP		hDump			= NULL;
-	PVGA_DUMP	ptDump			= NULL;
-	DWORD		cbDump			= 0;
-	PVGA_BITMAP	ptBitmap		= NULL;
-	HANDLE		hOutputFile		= INVALID_HANDLE_VALUE;
-	DWORD		cbWritten		= 0;
+	HRESULT				hrResult			= E_FAIL;
+	PCWSTR				pwszDumpPath		= NULL;
+	PCWSTR				pwszOutputPath		= NULL;
+	HDUMP				hDump				= NULL;
+	PFRAMEBUFFER_DUMP	ptFramebufferDump	= NULL;
+	DWORD				cbFramebufferDump	= 0;
+	PFRAMEBUFFER_BITMAP	ptFramebufferBitmap	= NULL;
+	PVGA_DUMP			ptDump				= NULL;
+	DWORD				cbDump				= 0;
+	PVGA_BITMAP			ptBitmap			= NULL;
+	PVOID				pvToWrite			= NULL;
+	DWORD				cbToWrite			= 0;
+	HANDLE				hOutputFile			= INVALID_HANDLE_VALUE;
+	DWORD				cbWritten			= 0;
 
 	assert(NULL != ppwszArguments);
 
@@ -524,26 +622,48 @@ main_HandleConvert(
 	}
 
 	hrResult = DUMPPARSE_ReadTagged(hDump,
-									&g_tVgaDumpGuid,
-									&ptDump,
-									&cbDump);
-	if (FAILED(hrResult))
+									&g_tFramebufferDumpGuid,
+									(PVOID *)&ptFramebufferDump,
+									&cbFramebufferDump);
+	if (SUCCEEDED(hrResult))
 	{
-		PROGRESS("Failed reading saved bugcheck screenshot. Did you save it?");
-		goto lblCleanup;
-	}
-	if (sizeof(*ptDump) != cbDump)
-	{
-		PROGRESS("The stored screenshot has a weird size.");
-		hrResult = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-		goto lblCleanup;
-	}
+		hrResult = main_FramebufferDumpToBitmap(ptFramebufferDump, &ptFramebufferBitmap);
+		if (FAILED(hrResult))
+		{
+			PROGRESS("Failed converting framebuffer dump to BMP.");
+			goto lblCleanup;
+		}
 
-	hrResult = main_VgaDumpToBitmap(ptDump, &ptBitmap);
-	if (FAILED(hrResult))
+		pvToWrite = ptFramebufferBitmap;
+		cbToWrite = ptFramebufferBitmap->tFileHeader.bfSize;
+	}
+	else
 	{
-		PROGRESS("Failed converting raw VGA dump to BMP.");
-		goto lblCleanup;
+		hrResult = DUMPPARSE_ReadTagged(hDump,
+										&g_tVgaDumpGuid,
+										(PVOID *)&ptDump,
+										&cbDump);
+		if (FAILED(hrResult))
+		{
+			PROGRESS("Failed reading saved bugcheck screenshot. Did you save it?");
+			goto lblCleanup;
+		}
+		if (sizeof(*ptDump) != cbDump)
+		{
+			PROGRESS("The stored screenshot has a weird size.");
+			hrResult = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+			goto lblCleanup;
+		}
+
+		hrResult = main_VgaDumpToBitmap(ptDump, &ptBitmap);
+		if (FAILED(hrResult))
+		{
+			PROGRESS("Failed converting raw VGA dump to BMP.");
+			goto lblCleanup;
+		}
+
+		pvToWrite = ptBitmap;
+		cbToWrite = ptBitmap->tFileHeader.bfSize;
 	}
 
 	hOutputFile = CreateFileW(pwszOutputPath,
@@ -561,8 +681,8 @@ main_HandleConvert(
 	}
 
 	if (!WriteFile(hOutputFile,
-				   ptBitmap,
-				   sizeof(*ptBitmap),
+				   pvToWrite,
+				   cbToWrite,
 				   &cbWritten,
 				   NULL))
 	{
@@ -570,7 +690,7 @@ main_HandleConvert(
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
 		goto lblCleanup;
 	}
-	if (sizeof(*ptBitmap) != cbWritten)
+	if (cbToWrite != cbWritten)
 	{
 		PROGRESS("Not all data written to the output file. Strange...");
 		hrResult = E_UNEXPECTED;
@@ -583,6 +703,8 @@ lblCleanup:
 	CLOSE_FILE_HANDLE(hOutputFile);
 	HEAPFREE(ptBitmap);
 	HEAPFREE(ptDump);
+	HEAPFREE(ptFramebufferBitmap);
+	HEAPFREE(ptFramebufferDump);
 	CLOSE(hDump, DUMPPARSE_Close);
 
 	return hrResult;
@@ -649,15 +771,48 @@ main_HandleBugshot(
 	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
 )
 {
-	HRESULT	hrResult	= E_FAIL;
+	HRESULT		hrResult	= E_FAIL;
+	RESOLUTION	tResolution	= { 0 };
+	ULONGLONG	nWidth		= 0;
+	ULONGLONG	nHeight		= 0;
 
-	UNREFERENCED_PARAMETER(nArguments);
-	UNREFERENCED_PARAMETER(ppwszArguments);
+	if (SUBFUNCTION_BUGSHOT_ARGS_COUNT != nArguments && 0 != nArguments)
+	{
+		PROGRESS("Invalid number of arguments specified.");
+		hrResult = E_INVALIDARG;
+		goto lblCleanup;
+	}
+
+	if (0 == nArguments)
+	{
+		PROGRESS("No resolution specified. Defaulting to 640x480.");
+		tResolution.nWidth = 640;
+		tResolution.nHeight = 480;
+	}
+	else
+	{
+		nWidth = wcstoull(ppwszArguments[SUBFUNCTION_BUGSHOT_ARG_WIDTH], NULL, 10);
+		if (0 == nWidth || nWidth > ULONG_MAX)
+		{
+			PROGRESS("Invalid width specified (%ws)", ppwszArguments[SUBFUNCTION_BUGSHOT_ARG_WIDTH]);
+		}
+
+		nHeight = wcstoull(ppwszArguments[SUBFUNCTION_BUGSHOT_ARG_HEIGHT], NULL, 10);
+		if (0 == nHeight || nHeight > ULONG_MAX)
+		{
+			PROGRESS("Invalid height specified (%ws)", ppwszArguments[SUBFUNCTION_BUGSHOT_ARG_HEIGHT]);
+		}
+
+		tResolution.nWidth = (ULONG)nWidth;
+		tResolution.nHeight = (ULONG)nHeight;
+
+		PROGRESS("Using max resolution of %lux%lu.", tResolution.nWidth, tResolution.nHeight);
+	}
 
 	PROGRESS("Registering callback to take a bugcheck snapshot.");
 
 	hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_BUGSHOT,
-										  NULL, 0,
+										  &tResolution, sizeof(tResolution),
 										  NULL, 0, NULL);
 	if (FAILED(hrResult))
 	{
