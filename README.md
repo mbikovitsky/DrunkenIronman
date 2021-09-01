@@ -34,6 +34,10 @@ DrunkenIronman.exe <subfunction> <subfunction args>
   bugshot [<width> <height>]
     Instructs the driver to capture a screenshot
     of the next BSoD.
+    The width and height parameters are used only on Windows 10+,
+    to define the maximum size of the captured image. They are ignored
+    on earlier systems, and on Windows 10 if the BSoD is generated in VGA mode.
+    If not specified, the default is 640x480.
 
   vanity <string>
     Crashes the system and displays the specified string
