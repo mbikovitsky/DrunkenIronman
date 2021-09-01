@@ -12,6 +12,18 @@ Taking the Death out of the Blue Screen.
 Make sure memory dumps are enabled if you intend
 to capture screenshots.
 
+To convert screenshots, make sure you have `dbgeng.dll` and related DLLs in the same
+directory as `DrunkenIronman.exe`. You can get them from the
+[Debugging Tools for Windows][windbg]. For recent releases of the tools
+you need to copy at least:
+
+- `dbgeng.dll`
+- `dbghelp.dll`
+- `DbgModel.dll`
+
+Note that old releases of `dbgeng.dll` may not be able to parse dumps created
+with newer versions of Windows.
+
 The software has been tested on the following:
 
 |        System        | VMware Workstation |      Physical      |
@@ -79,3 +91,7 @@ DrunkenIronman.exe qr C:\Some\Path\image.bmp
 ![Screenshot of a Windows XP blue screen with the message IRQL NOT LESS OR AWESOME](Screenshot_XP.bmp)
 
 ![Screenshot of a Windows 10 blue screen with the message IRQL NOT LESS OR AWESOME and a QR code linking to a popular video](Screenshot_10.bmp)
+
+
+[windbg]: https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/
+  "Debugging Tools for Windows (WinDbg, KD, CDB, NTSD) - Windows drivers | Microsoft Docs"
