@@ -140,6 +140,9 @@ dxdump_SystemDisplayWriteHook(
         pcSrcRow += SourceStride;
     }
 
+	g_ptShadowFramebuffer->nMaxSeenWidth = max(g_ptShadowFramebuffer->nMaxSeenWidth, SourceWidth + PositionX);
+	g_ptShadowFramebuffer->nMaxSeenHeight = max(g_ptShadowFramebuffer->nMaxSeenHeight, SourceHeight + PositionY);
+
 lblCleanup:
 	pfnOriginal(MiniportDeviceContext,
 				Source,

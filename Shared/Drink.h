@@ -143,6 +143,8 @@ typedef struct _FRAMEBUFFER_DUMP
 {
 	ULONG	nWidth;
 	ULONG	nHeight;
+	ULONG	nMaxSeenWidth;
+	ULONG	nMaxSeenHeight;
 	BOOLEAN	bValid;
 	UCHAR	acPixels[ANYSIZE_ARRAY];
 } FRAMEBUFFER_DUMP, *PFRAMEBUFFER_DUMP;

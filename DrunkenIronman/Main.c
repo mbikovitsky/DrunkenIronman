@@ -247,7 +247,16 @@ main_FramebufferDumpToBitmap(
 	// Invalid dumps will never be written by the kernel.
 	assert(ptDump->bValid);
 
-	PROGRESS("Converting raw VGA dump to BMP...");
+	PROGRESS("Converting framebuffer dump to BMP...");
+
+	if (ptDump->nMaxSeenWidth > ptDump->nWidth || ptDump->nMaxSeenHeight > ptDump->nHeight)
+	{
+		PROGRESS("Image truncated. Actual size was %lux%lu, but saved only %lux%lu",
+				 ptDump->nMaxSeenWidth,
+				 ptDump->nMaxSeenHeight,
+				 ptDump->nWidth,
+				 ptDump->nHeight);
+	}
 
 	// Should be safe since the kernel already performed the same calculation.
 	ptBitmap = HEAPALLOC(FIELD_OFFSET(FRAMEBUFFER_BITMAP, acPixels[ptDump->nWidth * ptDump->nHeight * 4]));
