@@ -384,7 +384,10 @@ DXDUMP_Shutdown(VOID)
 
 	for (nIndex = 0; nIndex < ARRAYSIZE(g_atHookContexts); ++nIndex)
 	{
-		g_atHookContexts[nIndex].ptInitializationData->DxgkDdiSystemDisplayWrite = g_atHookContexts[nIndex].pfnOriginal;
+		if (NULL != g_atHookContexts[nIndex].ptInitializationData)
+		{
+			g_atHookContexts[nIndex].ptInitializationData->DxgkDdiSystemDisplayWrite = g_atHookContexts[nIndex].pfnOriginal;
+		}
 		CLOSE(g_atHookContexts[nIndex].ptDriverObject, ObfDereferenceObject);
 		RtlZeroMemory(&g_atHookContexts[nIndex], sizeof(g_atHookContexts[nIndex]));
 	}
