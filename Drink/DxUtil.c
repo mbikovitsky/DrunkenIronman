@@ -25,7 +25,7 @@
 #ifdef _M_X64
 #define DRIVER_INITIALIZATION_DATA_OFFSET (0x88)
 #elif _M_IX86
-#error Unsupported architecture
+#define DRIVER_INITIALIZATION_DATA_OFFSET (0x54)
 #else
 #error Unsupported architecture
 #endif
