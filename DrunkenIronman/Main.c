@@ -242,7 +242,11 @@ main_FramebufferDumpToBitmap(
 )
 {
 	HRESULT				hrResult		= E_FAIL;
+	ULONG				nBitmapWidth	= 0;
+	ULONG				nBitmapHeight	= 0;
+	DWORD				cbBitmap		= 0;
 	PFRAMEBUFFER_BITMAP	ptBitmap		= NULL;
+	ULONG				nRow			= 0;
 
 	// Invalid dumps will never be written by the kernel.
 	assert(ptDump->bValid);
@@ -258,8 +262,26 @@ main_FramebufferDumpToBitmap(
 				 ptDump->nHeight);
 	}
 
+	nBitmapWidth = min(ptDump->nWidth, ptDump->nMaxSeenWidth);
+	if (nBitmapWidth > LONG_MAX)
+	{
+		PROGRESS("Image too wide (%lu pixels)", nBitmapWidth);
+		hrResult = E_DRAW;
+		goto lblCleanup;
+	}
+
+	nBitmapHeight = min(ptDump->nHeight, ptDump->nMaxSeenHeight);
+	if (nBitmapHeight > LONG_MAX)
+	{
+		PROGRESS("Image too tall (%lu pixels)", nBitmapHeight);
+		hrResult = E_DRAW;
+		goto lblCleanup;
+	}
+
 	// Should be safe since the kernel already performed the same calculation.
-	ptBitmap = HEAPALLOC(FIELD_OFFSET(FRAMEBUFFER_BITMAP, acPixels[ptDump->nWidth * ptDump->nHeight * 4]));
+	cbBitmap = FIELD_OFFSET(FRAMEBUFFER_BITMAP, acPixels[nBitmapWidth * nBitmapHeight * 4]);
+
+	ptBitmap = HEAPALLOC(cbBitmap);
 	if (NULL == ptBitmap)
 	{
 		PROGRESS("Oops. Ran out of memory.");
@@ -271,13 +293,13 @@ main_FramebufferDumpToBitmap(
 
 	// Initialize the file header
 	ptBitmap->tFileHeader.bfType = 'MB';
-	ptBitmap->tFileHeader.bfSize = FIELD_OFFSET(FRAMEBUFFER_BITMAP, acPixels[ptDump->nWidth * ptDump->nHeight * 4]);
+	ptBitmap->tFileHeader.bfSize = cbBitmap;
 	ptBitmap->tFileHeader.bfOffBits = FIELD_OFFSET(FRAMEBUFFER_BITMAP, acPixels);
 
 	// Initialize the info header
 	ptBitmap->tInfoHeader.biSize = sizeof(ptBitmap->tInfoHeader);
-	ptBitmap->tInfoHeader.biWidth = ptDump->nWidth;
-	ptBitmap->tInfoHeader.biHeight = -ptDump->nHeight;		// Negative because otherwise the bitmap
+	ptBitmap->tInfoHeader.biWidth = (LONG)nBitmapWidth;
+	ptBitmap->tInfoHeader.biHeight = -(LONG)nBitmapHeight;	// Negative because otherwise the bitmap
 															// is bottom-up :)
 	ptBitmap->tInfoHeader.biPlanes = 1;
 	ptBitmap->tInfoHeader.biBitCount = 32;
@@ -285,7 +307,12 @@ main_FramebufferDumpToBitmap(
 
 	// Set the pixel values
 	PROGRESS("Writing the pixel data.");
-	MoveMemory(ptBitmap->acPixels, ptDump->acPixels, ptDump->nWidth * ptDump->nHeight * 4);
+	for (nRow = 0; nRow < nBitmapHeight; ++nRow)
+	{
+		MoveMemory(&ptBitmap->acPixels[nRow * nBitmapWidth * 4],
+				   &ptDump->acPixels[nRow * ptDump->nWidth * 4],
+				   nBitmapWidth * 4);
+	}
 
 	// Transfer ownership:
 	*pptBitmap = ptBitmap;
