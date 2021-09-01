@@ -134,6 +134,19 @@ typedef struct _VGA_BITMAP
 typedef CONST VGA_BITMAP *PCVGA_BITMAP;
 #pragma pack(pop)
 
+/**
+ * Structure of the finished BMP on disk.
+ */
+#pragma pack(push, 1)
+typedef struct _FRAMEBUFFER_BITMAP
+{
+	BITMAPFILEHEADER	tFileHeader;
+	BITMAPINFOHEADER	tInfoHeader;
+	BYTE				acPixels[ANYSIZE_ARRAY];
+} FRAMEBUFFER_BITMAP, *PFRAMEBUFFER_BITMAP;
+typedef FRAMEBUFFER_BITMAP CONST *PCFRAMEBUFFER_BITMAP;
+#pragma pack(pop)
+
 
 /** Functions ***********************************************************/
 

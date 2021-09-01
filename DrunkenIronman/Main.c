@@ -233,6 +233,58 @@ lblCleanup:
 	return hrResult;
 }
 
+STATIC
+HRESULT
+main_FramebufferDumpToBitmap(
+	_In_		PFRAMEBUFFER_DUMP		ptDump,
+	_Outptr_	PFRAMEBUFFER_BITMAP *	pptBitmap
+)
+{
+	HRESULT				hrResult		= E_FAIL;
+	PFRAMEBUFFER_BITMAP	ptBitmap		= NULL;
+
+	PROGRESS("Converting raw VGA dump to BMP...");
+
+	ptBitmap = HEAPALLOC(FIELD_OFFSET(FRAMEBUFFER_BITMAP, acPixels[ptDump->nWidth * ptDump->nHeight * 4]));
+	if (NULL == ptBitmap)
+	{
+		PROGRESS("Oops. Ran out of memory.");
+		hrResult = E_OUTOFMEMORY;
+		goto lblCleanup;
+	}
+
+	PROGRESS("Writing the BMP header.");
+
+	// Initialize the file header
+	ptBitmap->tFileHeader.bfType = 'MB';
+	ptBitmap->tFileHeader.bfSize = FIELD_OFFSET(FRAMEBUFFER_BITMAP, acPixels[ptDump->nWidth * ptDump->nHeight * 4]);
+	ptBitmap->tFileHeader.bfOffBits = FIELD_OFFSET(FRAMEBUFFER_BITMAP, acPixels);
+
+	// Initialize the info header
+	ptBitmap->tInfoHeader.biSize = sizeof(ptBitmap->tInfoHeader);
+	ptBitmap->tInfoHeader.biWidth = ptDump->nWidth;
+	ptBitmap->tInfoHeader.biHeight = -ptDump->nHeight;		// Negative because otherwise the bitmap
+															// is bottom-up :)
+	ptBitmap->tInfoHeader.biPlanes = 1;
+	ptBitmap->tInfoHeader.biBitCount = 32;
+	ptBitmap->tInfoHeader.biCompression = BI_RGB;
+
+	// Set the pixel values
+	PROGRESS("Writing the pixel data.");
+	MoveMemory(ptBitmap->acPixels, ptDump->acPixels, ptDump->nWidth * ptDump->nHeight * 4);
+
+	// Transfer ownership:
+	*pptBitmap = ptBitmap;
+	ptBitmap = NULL;
+
+	hrResult = S_OK;
+
+lblCleanup:
+	HEAPFREE(ptBitmap);
+
+	return hrResult;
+}
+
 _Use_decl_annotations_
 STATIC
 HRESULT
@@ -485,15 +537,20 @@ main_HandleConvert(
 	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
 )
 {
-	HRESULT		hrResult		= E_FAIL;
-	PCWSTR		pwszDumpPath	= NULL;
-	PCWSTR		pwszOutputPath	= NULL;
-	HDUMP		hDump			= NULL;
-	PVGA_DUMP	ptDump			= NULL;
-	DWORD		cbDump			= 0;
-	PVGA_BITMAP	ptBitmap		= NULL;
-	HANDLE		hOutputFile		= INVALID_HANDLE_VALUE;
-	DWORD		cbWritten		= 0;
+	HRESULT				hrResult			= E_FAIL;
+	PCWSTR				pwszDumpPath		= NULL;
+	PCWSTR				pwszOutputPath		= NULL;
+	HDUMP				hDump				= NULL;
+	PFRAMEBUFFER_DUMP	ptFramebufferDump	= NULL;
+	DWORD				cbFramebufferDump	= 0;
+	PFRAMEBUFFER_BITMAP	ptFramebufferBitmap	= NULL;
+	PVGA_DUMP			ptDump				= NULL;
+	DWORD				cbDump				= 0;
+	PVGA_BITMAP			ptBitmap			= NULL;
+	PVOID				pvToWrite			= NULL;
+	DWORD				cbToWrite			= 0;
+	HANDLE				hOutputFile			= INVALID_HANDLE_VALUE;
+	DWORD				cbWritten			= 0;
 
 	assert(NULL != ppwszArguments);
 
@@ -524,26 +581,48 @@ main_HandleConvert(
 	}
 
 	hrResult = DUMPPARSE_ReadTagged(hDump,
-									&g_tVgaDumpGuid,
-									&ptDump,
-									&cbDump);
-	if (FAILED(hrResult))
+									&g_tFramebufferDumpGuid,
+									(PVOID *)&ptFramebufferDump,
+									&cbFramebufferDump);
+	if (SUCCEEDED(hrResult))
 	{
-		PROGRESS("Failed reading saved bugcheck screenshot. Did you save it?");
-		goto lblCleanup;
-	}
-	if (sizeof(*ptDump) != cbDump)
-	{
-		PROGRESS("The stored screenshot has a weird size.");
-		hrResult = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-		goto lblCleanup;
-	}
+		hrResult = main_FramebufferDumpToBitmap(ptFramebufferDump, &ptFramebufferBitmap);
+		if (FAILED(hrResult))
+		{
+			PROGRESS("Failed converting framebuffer dump to BMP.");
+			goto lblCleanup;
+		}
 
-	hrResult = main_VgaDumpToBitmap(ptDump, &ptBitmap);
-	if (FAILED(hrResult))
+		pvToWrite = ptFramebufferBitmap;
+		cbToWrite = ptFramebufferBitmap->tFileHeader.bfSize;
+	}
+	else
 	{
-		PROGRESS("Failed converting raw VGA dump to BMP.");
-		goto lblCleanup;
+		hrResult = DUMPPARSE_ReadTagged(hDump,
+										&g_tVgaDumpGuid,
+										(PVOID *)&ptDump,
+										&cbDump);
+		if (FAILED(hrResult))
+		{
+			PROGRESS("Failed reading saved bugcheck screenshot. Did you save it?");
+			goto lblCleanup;
+		}
+		if (sizeof(*ptDump) != cbDump)
+		{
+			PROGRESS("The stored screenshot has a weird size.");
+			hrResult = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+			goto lblCleanup;
+		}
+
+		hrResult = main_VgaDumpToBitmap(ptDump, &ptBitmap);
+		if (FAILED(hrResult))
+		{
+			PROGRESS("Failed converting raw VGA dump to BMP.");
+			goto lblCleanup;
+		}
+
+		pvToWrite = ptBitmap;
+		cbToWrite = ptBitmap->tFileHeader.bfSize;
 	}
 
 	hOutputFile = CreateFileW(pwszOutputPath,
@@ -561,8 +640,8 @@ main_HandleConvert(
 	}
 
 	if (!WriteFile(hOutputFile,
-				   ptBitmap,
-				   sizeof(*ptBitmap),
+				   pvToWrite,
+				   cbToWrite,
 				   &cbWritten,
 				   NULL))
 	{
@@ -570,7 +649,7 @@ main_HandleConvert(
 		hrResult = HRESULT_FROM_WIN32(GetLastError());
 		goto lblCleanup;
 	}
-	if (sizeof(*ptBitmap) != cbWritten)
+	if (cbToWrite != cbWritten)
 	{
 		PROGRESS("Not all data written to the output file. Strange...");
 		hrResult = E_UNEXPECTED;
@@ -583,6 +662,8 @@ lblCleanup:
 	CLOSE_FILE_HANDLE(hOutputFile);
 	HEAPFREE(ptBitmap);
 	HEAPFREE(ptDump);
+	HEAPFREE(ptFramebufferBitmap);
+	HEAPFREE(ptFramebufferDump);
 	CLOSE(hDump, DUMPPARSE_Close);
 
 	return hrResult;
