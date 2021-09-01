@@ -65,6 +65,22 @@ typedef enum _SUBFUNCTION_CONVERT_ARGS
 } SUBFUNCTION_CONVERT_ARGS, *PSUBFUNCTION_CONVERT_ARGS;
 
 /**
+ * Command line argument positions for the "bugshot" subfunction.
+ */
+typedef enum _SUBFUNCTION_BUGSHOT_ARGS
+{
+	// Maximum width of the captured screenshot.
+	SUBFUNCTION_BUGSHOT_ARG_WIDTH = 0,
+
+	// Maximum height of the captured screenshot.
+	SUBFUNCTION_BUGSHOT_ARG_HEIGHT,
+
+	// Must be last:
+	SUBFUNCTION_BUGSHOT_ARGS_COUNT
+} SUBFUNCTION_BUGSHOT_ARGS, *PSUBFUNCTION_BUGSHOT_ARGS;
+typedef SUBFUNCTION_BUGSHOT_ARGS CONST *PCSUBFUNCTION_BUGSHOT_ARGS;
+
+/**
  * Command line argument positions for the "vanity" subfunction.
  */
 typedef enum _SUBFUNCTION_VANITY_ARGS

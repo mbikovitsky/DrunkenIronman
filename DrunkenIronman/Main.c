@@ -15,6 +15,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #include <Drink.h>
 
@@ -734,15 +735,48 @@ main_HandleBugshot(
 	_In_reads_(nArguments)	CONST PCWSTR *	ppwszArguments
 )
 {
-	HRESULT	hrResult	= E_FAIL;
+	HRESULT		hrResult	= E_FAIL;
+	RESOLUTION	tResolution	= { 0 };
+	ULONGLONG	nWidth		= 0;
+	ULONGLONG	nHeight		= 0;
 
-	UNREFERENCED_PARAMETER(nArguments);
-	UNREFERENCED_PARAMETER(ppwszArguments);
+	if (SUBFUNCTION_BUGSHOT_ARGS_COUNT != nArguments && 0 != nArguments)
+	{
+		PROGRESS("Invalid number of arguments specified.");
+		hrResult = E_INVALIDARG;
+		goto lblCleanup;
+	}
+
+	if (0 == nArguments)
+	{
+		PROGRESS("No resolution specified. Defaulting to 640x480.");
+		tResolution.nWidth = 640;
+		tResolution.nHeight = 480;
+	}
+	else
+	{
+		nWidth = wcstoull(ppwszArguments[SUBFUNCTION_BUGSHOT_ARG_WIDTH], NULL, 10);
+		if (0 == nWidth || nWidth > ULONG_MAX)
+		{
+			PROGRESS("Invalid width specified (%ws)", ppwszArguments[SUBFUNCTION_BUGSHOT_ARG_WIDTH]);
+		}
+
+		nHeight = wcstoull(ppwszArguments[SUBFUNCTION_BUGSHOT_ARG_HEIGHT], NULL, 10);
+		if (0 == nHeight || nHeight > ULONG_MAX)
+		{
+			PROGRESS("Invalid height specified (%ws)", ppwszArguments[SUBFUNCTION_BUGSHOT_ARG_HEIGHT]);
+		}
+
+		tResolution.nWidth = (ULONG)nWidth;
+		tResolution.nHeight = (ULONG)nHeight;
+
+		PROGRESS("Using max resolution of %lux%lu.", tResolution.nWidth, tResolution.nHeight);
+	}
 
 	PROGRESS("Registering callback to take a bugcheck snapshot.");
 
 	hrResult = DRINKCONTROL_ControlDriver(IOCTL_DRINK_BUGSHOT,
-										  NULL, 0,
+										  &tResolution, sizeof(tResolution),
 										  NULL, 0, NULL);
 	if (FAILED(hrResult))
 	{
