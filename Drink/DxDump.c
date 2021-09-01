@@ -94,6 +94,8 @@ dxdump_SystemDisplayWriteHook(
 	PUCHAR	pcDstRow			= NULL;
 	PUCHAR	pcSrcRow			= NULL;
 	ULONG	cbToCopy			= 0;
+	ULONG	nRows				= 0;
+	ULONG	nCols				= 0;
 	ULONG	nRow				= 0;
 
 	NT_ASSERT(NULL != pfnOriginal);
@@ -103,17 +105,11 @@ dxdump_SystemDisplayWriteHook(
 		goto lblCleanup;
 	}
 
-	cbFramebufferStride = g_ptShadowFramebuffer->nWidth * 4;
+	g_ptShadowFramebuffer->nMaxSeenWidth = max(g_ptShadowFramebuffer->nMaxSeenWidth, SourceWidth + PositionX);
+	g_ptShadowFramebuffer->nMaxSeenHeight = max(g_ptShadowFramebuffer->nMaxSeenHeight, SourceHeight + PositionY);
 
-	pcDstRow = &g_ptShadowFramebuffer->acPixels[PositionY * cbFramebufferStride + PositionX * 4];
-
-	pcSrcRow = Source;
-
-	// The source is always 32 BPP
-	cbToCopy = SourceWidth * 4;
-
-	// But sometimes it isn't, like when the output is actually to VGA.
-	if (SourceStride < cbToCopy)
+	// The source is always 32 BPP, but sometimes it isn't, like when the output is actually to VGA.
+	if (SourceStride < SourceWidth * 4)
 	{
 		// NOTE: The assumption here is that the MSDN is correct and the source image is
 		// always 32 BPP. The only exception I know of is when the output is to VGA using
@@ -131,17 +127,27 @@ dxdump_SystemDisplayWriteHook(
 		goto lblCleanup;
 	}
 
-	// TODO: Truncate image and don't overflow
+	if (PositionY >= g_ptShadowFramebuffer->nHeight || PositionX >= g_ptShadowFramebuffer->nWidth)
+	{
+		goto lblCleanup;
+	}
 
-    for (nRow = 0; nRow < SourceHeight; ++nRow)
+	cbFramebufferStride = g_ptShadowFramebuffer->nWidth * 4;
+
+	pcDstRow = &g_ptShadowFramebuffer->acPixels[PositionY * cbFramebufferStride + PositionX * 4];
+	pcSrcRow = Source;
+
+	nRows = min(SourceHeight, g_ptShadowFramebuffer->nHeight - PositionY);
+	nCols = min(SourceWidth, g_ptShadowFramebuffer->nWidth - PositionX);
+
+	cbToCopy = nCols * 4;
+
+	for (nRow = 0; nRow < nRows; ++nRow)
     {
         RtlMoveMemory(pcDstRow, pcSrcRow, cbToCopy);
         pcDstRow += cbFramebufferStride;
         pcSrcRow += SourceStride;
     }
-
-	g_ptShadowFramebuffer->nMaxSeenWidth = max(g_ptShadowFramebuffer->nMaxSeenWidth, SourceWidth + PositionX);
-	g_ptShadowFramebuffer->nMaxSeenHeight = max(g_ptShadowFramebuffer->nMaxSeenHeight, SourceHeight + PositionY);
 
 lblCleanup:
 	pfnOriginal(MiniportDeviceContext,
