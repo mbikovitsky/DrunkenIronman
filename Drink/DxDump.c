@@ -89,12 +89,36 @@ dxdump_SystemDisplayWriteHook(
 	_In_											PDXGKDDI_SYSTEM_DISPLAY_WRITE	pfnOriginal
 )
 {
+	UINT	cbFramebufferStride	= 0;
+	PUCHAR	pcDstRow			= NULL;
+	PUCHAR	pcSrcRow			= NULL;
+	ULONG	cbToCopy			= 0;
+	ULONG	nRow				= 0;
+
 	NT_ASSERT(NULL != pfnOriginal);
 
 	if (NULL == g_ptShadowFramebuffer)
 	{
 		goto lblCleanup;
 	}
+
+	cbFramebufferStride = g_ptShadowFramebuffer->nWidth * 4;
+
+	pcDstRow = &g_ptShadowFramebuffer->acPixels[PositionY * cbFramebufferStride + PositionX * 4];
+
+	pcSrcRow = Source;
+
+	// The source is always 32 BPP
+	cbToCopy = SourceWidth * 4;
+
+	// TODO: Truncate image and don't overflow
+
+    for (nRow = 0; nRow < SourceHeight; ++nRow)
+    {
+        RtlMoveMemory(pcDstRow, pcSrcRow, cbToCopy);
+        pcDstRow += cbFramebufferStride;
+        pcSrcRow += SourceStride;
+    }
 
 lblCleanup:
 	pfnOriginal(MiniportDeviceContext,
